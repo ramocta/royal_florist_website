@@ -16,7 +16,8 @@ $dataGrafik   = [];
 
 for ($i = 6; $i >= 0; $i--) {
     $dateLoop = date('Y-m-d', strtotime("$selectedDate -$i days"));
-    $labelsGrafik[] = date('d/m', strtotime($dateLoop)) . "\n" . getNamaHari($dateLoop);
+    // Array dua baris: tanggal di atas, nama hari di bawah
+    $labelsGrafik[] = [date('d/m', strtotime($dateLoop)), getNamaHari($dateLoop)];
     
     $pendapatanHarian = skalar($pdo, "SELECT SUM(total_harga) FROM pesanan WHERE DATE(tanggal) = ?", [$dateLoop]) ?? 0;
     
@@ -338,7 +339,8 @@ function getNamaHari($tanggal) {
                 </a>
             </li>
             <li>
-                <a href="#">
+                <!-- Tautan ke halaman laporan, membawa tanggal yang sedang dipilih -->
+                <a href="laporan_penjualan.php?end_date=<?= urlencode($selectedDate); ?>">
                     <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"></path></svg>
                     <span>Laporan Penjualan</span>
                 </a>
