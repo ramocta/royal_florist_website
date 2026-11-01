@@ -3,30 +3,69 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Product extends Model
 {
+    protected $table = 'products';
     protected $primaryKey = 'id_product';
+
+    // Tabel products tidak punya created_at / updated_at
     public $timestamps = false;
 
     protected $fillable = [
-        'nama_produk', 'deskripsi', 'harga', 'foto_produk', 'stok', 'id_ctg', 'is_active',
+        'nama_produk',
+        'deskripsi',
+        'harga',
+        'foto_produk',
+        'stok',
+        'tersedia',
+        'id_ctg',
+        'id_subctg',
+        'is_active',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'harga'     => 'decimal:2',
+        'stok'      => 'integer',
+        'tersedia'  => 'boolean',
+        'is_active' => 'boolean',
+    ];
+
+    public function category()
     {
-        return ['is_active' => 'boolean'];
+        return $this->belongsTo(Category::class, 'id_ctg');
     }
 
-    public function category(): BelongsTo
+    public function subcategory()
     {
-        return $this->belongsTo(Category::class, 'id_ctg', 'id_ctg');
+        return $this->belongsTo(Subcategory::class, 'id_subctg');
     }
 
-    public function orderItems(): HasMany
+    /** SKU dibuat dari id: #PRD-001 */
+    public function getSkuAttribute(): string
     {
-        return $this->hasMany(OrderItem::class, 'id_product', 'id_product');
+        return '#PRD-' . str_pad($this->id_product, 3, '0', STR_PAD_LEFT);
+    }
+
+    /** true bila jenis produk ini dihitung per stok (Buket Fresh Flower) */
+    public function getPakaiStokAttribute(): bool
+    {
+        return (bool) optional($this->subcategory)->pakai_stok;
+    }
+
+    /** Tersedia | Habis | Nonaktif */
+    public function getStatusAttribute(): string
+    {
+        if (! $this->is_active) return 'Nonaktif';
+
+        $ada = $this->pakai_stok ? $this->stok > 0 : $this->tersedia;
+
+        return $ada ? 'Tersedia' : 'Habis';
+    }
+
+    public function getFotoUrlAttribute(): ?string
+    {
+        return $this->foto_produk ? Storage::disk('public')->url($this->foto_produk) : null;
     }
 }
