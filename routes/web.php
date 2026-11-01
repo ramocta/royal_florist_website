@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\admin\KaryawanController;
+use App\Http\Controllers\admin\PesananController;
 use App\Http\Controllers\admin\ProdukController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,4 +27,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('produk/{produk}/edit', [ProdukController::class, 'edit'])->name('produk.edit');
     Route::put('produk/{produk}', [ProdukController::class, 'update'])->name('produk.update');
     Route::delete('produk/{produk}', [ProdukController::class, 'destroy'])->name('produk.destroy');
+
+    // Pesanan -> http://localhost:8000/admin/pesanan
+    // Route statis (create) harus di atas {pesanan} kalau nanti ada halaman detail
+    Route::get('pesanan', [PesananController::class, 'index'])->name('pesanan.index');
+    Route::get('pesanan/create', [PesananController::class, 'create'])->name('pesanan.create');
+    Route::post('pesanan', [PesananController::class, 'store'])->name('pesanan.store');
 });
