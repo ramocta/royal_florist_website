@@ -1,5 +1,5 @@
 <?php
-require_once 'koneksi.php';
+require_once __DIR__ . '/../auth/koneksi.php';
 
 // Mulai sesi hanya kalau koneksi.php belum memulainya
 if (session_status() === PHP_SESSION_NONE) {
@@ -7,7 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 if (!isset($_SESSION['user_id']) && !isset($_SESSION['admin_logged_in'])) {
-    header('Location: login.php');
+    header('Location: ../auth/login.php');
     exit;
 }
 
@@ -225,7 +225,7 @@ $menu = [
     ['#',                     'users',    'Manajemen Staff',    false],
     ['#',                     'progress', 'Manajemen Progress', false],
     ['#',                     'settings', 'Pengaturan',         false],
-    ['logout.php',            'logout',   'Keluar',             false],
+    ['../auth/logout.php',    'logout',   'Keluar',             false],
 ];
 
 /* Kartu tren: tampilkan panah + persen */
@@ -295,6 +295,21 @@ function badgeTren($nilai): string
         .bell::after { content: ''; position: absolute; top: -1px; right: 0; width: 7px; height: 7px; background: #e0446a; border-radius: 50%; border: 1.5px solid var(--pink-bg); }
         .admin { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; color: var(--maroon); }
         .avatar { width: 38px; height: 38px; background: var(--maroon); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+        /* Dropdown admin + logout */
+        .admin-menu { position: relative; }
+        .admin-menu summary { list-style: none; cursor: pointer; }
+        .admin-menu summary::-webkit-details-marker { display: none; }
+        .admin-menu .dropdown {
+            position: absolute; right: 0; top: 50px; min-width: 170px; background: #fff;
+            border: 1px solid var(--pink-garis); border-radius: 12px; overflow: hidden;
+            box-shadow: 0 8px 24px rgba(123, 24, 48, .15); z-index: 30;
+        }
+        .admin-menu .dropdown a {
+            display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+            color: var(--maroon); text-decoration: none; font-size: 13px; font-weight: 600;
+        }
+        .admin-menu .dropdown a:hover { background: var(--pink-tabel); }
 
         /* ---------- Sidebar ---------- */
         .sidebar {
@@ -439,11 +454,18 @@ function badgeTren($nilai): string
                 <button type="submit">Terapkan</button>
             </form>
             <span class="bell"><?= ikon('bell', 22); ?></span>
-            <div class="admin">
-                <div class="avatar"><?= ikon('user', 20); ?></div>
-                <span><?= e($_SESSION['nama'] ?? 'Admin'); ?></span>
-                <?= ikon('chevron', 16); ?>
-            </div>
+
+            <!-- Menu admin + Logout -->
+            <details class="admin-menu">
+                <summary class="admin">
+                    <div class="avatar"><?= ikon('user', 20); ?></div>
+                    <span><?= e($_SESSION['nama'] ?? 'Admin'); ?></span>
+                    <?= ikon('chevron', 16); ?>
+                </summary>
+                <div class="dropdown">
+                    <a href="../auth/logout.php" onclick="return confirm('Apakah Anda yakin ingin keluar?');"><?= ikon('logout', 17); ?> Logout</a>
+                </div>
+            </details>
         </div>
     </header>
 

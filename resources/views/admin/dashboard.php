@@ -1,5 +1,5 @@
 <?php
-require_once 'koneksi.php';
+require_once __DIR__ . '/../auth/koneksi.php';
 
 // 1. Proteksi Session Login
 if (!isset($_SESSION['user_id']) && !isset($_SESSION['admin_logged_in'])) {
@@ -280,7 +280,7 @@ $kartu = [
                     <?= ikon('chevron', 16); ?>
                 </summary>
                 <div class="dropdown">
-                    <a href="logout.php" onclick="return confirm('Apakah Anda yakin ingin keluar?');"><?= ikon('logout', 17); ?> Logout</a>
+                    <a href="../auth/logout.php" onclick="return confirm('Apakah Anda yakin ingin keluar?');"><?= ikon('logout', 17); ?> Logout</a>
                 </div>
             </details>
         </div>

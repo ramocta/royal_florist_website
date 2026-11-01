@@ -1,14 +1,17 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once 'koneksi.php';
 
-// Jika sudah login, langsung arahkan berdasarkan rolenya masing-masing
+// Jika sudah login, langsung arahkan berdasarkan rolenya
 if (isset($_SESSION['user_id'])) {
     $current_role = strtolower(trim($_SESSION['role'] ?? ''));
     if ($current_role === 'admin' || $current_role === 'karyawan') {
-        header('Location: dashboard.php');
+        header('Location: ../admin/dashboard.php');
         exit;
     } else {
-        header('Location: pelanggan_dashboard.php');
+        header('Location: ../pelanggan/pelanggan_dashboard.php');
         exit;
     }
 }
@@ -21,45 +24,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!empty($email) && !empty($password)) {
         try {
-            // Mencari user berdasarkan email di database
             $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
             $stmt->execute([$email]);
             $user = $stmt->fetch();
 
-            if ($user) {
-                $storedPassword = $user['password'] ?? '';
-                
-                // Verifikasi password (mendukung teks biasa, MD5, atau password_hash)
-                if ($password === $storedPassword || md5($password) === $storedPassword || password_verify($password, $storedPassword)) {
-                    
-                    // Simpan data ke session
-                    $_SESSION['user_id'] = $user['id_user'] ?? $user['id']; 
-                    $_SESSION['nama']    = $user['nama'] ?? 'User';
-                    
-                    // Ambil dan bersihkan nilai role dari database
-                    $role = strtolower(trim($user['role'] ?? 'pelanggan'));
-                    $_SESSION['role']    = $role;
+            if ($user && password_verify($password, $user['password'])) {
+                $_SESSION['user_id'] = $user['id_user'];
+                $_SESSION['nama']    = $user['nama'];
+                $_SESSION['role']    = $user['role'];
 
-                    // PEMISAH ALUR: Admin ke dashboard, Pelanggan ke halaman pelanggan
-                    if ($role === 'admin' || $role === 'karyawan') {
-                        $_SESSION['admin_logged_in'] = true;
-                        header('Location: dashboard.php'); // Halaman Admin & Laporan Penjualan
-                        exit;
-                    } else {
-                        header('Location: pelanggan_dashboard.php'); // Halaman Pelanggan
-                        exit;
-                    }
+                $role = strtolower(trim($user['role']));
+                if ($role === 'admin' || $role === 'karyawan') {
+                    $_SESSION['admin_logged_in'] = true;
+                    header('Location: ../admin/dashboard.php');
+                    exit;
                 } else {
-                    $error = 'Email atau password salah!';
+                    header('Location: ../pelanggan/pelanggan_dashboard.php');
+                    exit;
                 }
             } else {
                 $error = 'Email atau password salah!';
             }
         } catch (PDOException $e) {
-            $error = 'Terjadi kesalahan sistem: ' . $e->getMessage();
+            $error = 'Terjadi kesalahan pada server.';
         }
     } else {
-        $error = 'Harap isi semua kolom!';
+        $error = 'Email dan password wajib diisi.';
     }
 }
 ?>
@@ -68,149 +58,150 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
-    <title>Royal Florist - Masuk</title>
+    <title>Login - Royal Florist</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
     <style>
-        :root { --maroon:#8b2346; --maroon-dark:#6f1a37; --ink:#3d1f2a; --muted:#8a6b75; --line:#ecd3da; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', system-ui, sans-serif; color: var(--ink); min-height: 100vh; position: relative; overflow-x: hidden; background: linear-gradient(135deg, #fdf1f4, #f5d6de); }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh; overflow: hidden;
+            font-family: 'Inter', Arial, sans-serif;
+            background: linear-gradient(135deg, #fdeef2 0%, #f9d9e2 100%);
+            display: flex; align-items: center; justify-content: space-around;
+            position: relative;
+        }
+        /* Bunga dekorasi */
+        .bunga { position: absolute; width: 180px; height: 180px; z-index: 0; }
+        .b1 { top: -30px;  left: -30px;  width: 190px; height: 190px; }
+        .b2 { top: 40px;   left: 90px;   width: 340px; height: 340px; opacity: .9; }
+        .b3 { top: 120px;  left: 280px;  width: 160px; height: 160px; }
+        .b4 { bottom: -60px; left: 40px; width: 380px; height: 380px; }
+        .b5 { bottom: 30px; left: 360px; width: 190px; height: 190px; }
+        .b6 { top: -20px;  right: 260px; width: 190px; height: 190px; }
+        .b7 { top: -30px;  right: -20px; width: 150px; height: 150px; }
+        .b8 { top: 120px;  right: -60px; width: 330px; height: 330px; }
+        .b9 { bottom: -40px; right: 100px; width: 200px; height: 200px; }
+        .b10 { bottom: -30px; right: -40px; width: 330px; height: 330px; }
 
-        .fl { position: fixed; pointer-events: none; z-index: 0; height: auto; }
-        .fl-tl { top: 0; left: 0; width: min(34vw, 420px); }
-        .fl-tr { top: 0; right: 0; width: min(30vw, 380px); }
-        .fl-bl { bottom: 0; left: 0; width: min(34vw, 420px); }
-        .fl-br { bottom: 0; right: 0; width: min(30vw, 380px); }
+        .sambutan { position: relative; z-index: 1; max-width: 520px; padding: 20px; }
+        .sambutan h1 {
+            font-family: 'Playfair Display', serif; font-size: 56px; line-height: 1.15;
+            color: #8b2045; margin: 0 0 30px;
+        }
+        .sambutan p {
+            font-family: 'Playfair Display', serif; font-style: italic;
+            font-size: 24px; color: #8b2045; margin: 0 0 24px;
+        }
+        .hati { display: flex; align-items: flex-end; gap: 2px; padding-left: 200px; }
 
-        .auth { position: relative; z-index: 1; min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; align-items: center; max-width: 1400px; margin: 0 auto; padding: 40px 5vw; gap: 40px; }
-        .welcome { text-align: center; }
-        .welcome h1 { font-family: 'Playfair Display', serif; font-weight: 700; color: var(--maroon); font-size: clamp(2rem, 3.4vw, 3rem); line-height: 1.25; }
-        .welcome p { font-family: 'Playfair Display', serif; font-style: italic; color: var(--maroon); font-size: clamp(1rem, 1.4vw, 1.25rem); line-height: 1.6; margin-top: 28px; }
-        .welcome .hearts { margin-top: 22px; width: 44px; height: auto; }
+        .card {
+            position: relative; z-index: 1; background: #fff;
+            width: 100%; max-width: 630px; padding: 56px 48px 40px;
+            border-radius: 36px; box-shadow: 0 20px 50px rgba(139,32,69,.12);
+        }
+        .card h2 { font-family: 'Playfair Display', serif; color: #8b2045; text-align: center; font-size: 36px; margin: 0 0 6px; }
+        .card .sub { text-align: center; color: #555; margin: 0 0 32px; }
+        .field { position: relative; margin-bottom: 18px; }
+        .field input {
+            width: 100%; padding: 18px 20px; font-size: 16px; font-family: inherit;
+            border: 1px solid #e6dcdf; border-radius: 16px; outline: none; background: #fff;
+        }
+        .field input:focus { border-color: #8b2045; box-shadow: 0 0 0 4px rgba(139,32,69,.12); }
+        .mata { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); background: none; border: 0; cursor: pointer; width: 28px; height: 28px; padding: 0; }
+        .btn {
+            width: 100%; padding: 20px; margin-top: 8px; background: #8b2045; color: #fff;
+            border: 0; border-radius: 40px; font-size: 18px; font-weight: 700; cursor: pointer; font-family: inherit;
+        }
+        .btn:hover { background: #721a39; }
+        .error { background: #fde8e8; color: #b00020; padding: 12px; border-radius: 12px; margin-bottom: 18px; text-align: center; }
+        .foot { text-align: center; margin-top: 24px; color: #444; }
+        .foot a { color: #8b2045; font-weight: 700; text-decoration: none; }
 
-        .login-card { background: #fff; border-radius: 18px; padding: 36px 32px; width: 100%; max-width: 420px; justify-self: center; box-shadow: 0 18px 50px rgba(139, 35, 70, .14); }
-        .brand-title { font-family: 'Playfair Display', serif; text-align: center; color: var(--maroon); font-size: 1.5rem; font-weight: 700; }
-        .brand-subtitle { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 4px; }
-
-        form { margin-top: 24px; display: flex; flex-direction: column; gap: 13px; }
-        .form-group { position: relative; }
-        .form-group label { display: block; font-size: .72rem; font-weight: 700; margin-bottom: 6px; }
-        .form-group input { width: 100%; height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; font: inherit; font-size: .82rem; color: var(--ink); background: #fff; outline: none; transition: border-color .15s, box-shadow .15s; }
-        .form-group input::placeholder { color: #b9a0a8; }
-        .form-group input:focus { border-color: var(--maroon); box-shadow: 0 0 0 3px rgba(139, 35, 70, .12); }
-        .form-group.has-eye input { padding-right: 44px; }
-        .eye { position: absolute; right: 6px; bottom: 6px; width: 32px; height: 32px; border: 0; background: none; cursor: pointer; color: var(--muted); display: grid; place-items: center; border-radius: 8px; }
-        .eye:hover { color: var(--maroon); }
-        .eye:focus-visible { outline: 2px solid var(--maroon); }
-        .eye svg { width: 18px; height: 18px; }
-
-        .check { display: flex; align-items: center; gap: 8px; font-size: .72rem; color: var(--muted); cursor: pointer; }
-        .check input { width: 15px; height: 15px; accent-color: var(--maroon); }
-        a { color: var(--maroon); font-weight: 700; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-
-        .btn-submit { height: 46px; border: 0; border-radius: 999px; background: var(--maroon); color: #fff; font: inherit; font-weight: 600; font-size: .88rem; cursor: pointer; margin-top: 6px; transition: background .15s; }
-        .btn-submit:hover { background: var(--maroon-dark); }
-        .btn-submit:focus-visible { outline: 3px solid rgba(139, 35, 70, .35); outline-offset: 2px; }
-
-        .link-reg { display: block; text-align: center; font-size: .72rem; font-weight: 400; color: var(--muted); margin-top: 20px; }
-        .link-reg b { color: var(--maroon); }
-        .link-reg:hover { text-decoration: none; }
-        .link-reg:hover b { text-decoration: underline; }
-
-        .alert { background: #fdecef; color: #a31d3f; border: 1px solid #f5c2cd; border-radius: 10px; padding: 10px 12px; font-size: .78rem; margin-top: 18px; }
-        .alert-success { background: #f2f9f5; color: #2e7d32; border: 1px solid #c8e6c9; border-radius: 10px; padding: 10px 12px; font-size: .78rem; margin-top: 18px; }
-        .alert-success a { color: #2e7d32; text-decoration: underline; }
-
-        @media (max-width: 860px) {
-            .auth { grid-template-columns: 1fr; padding: 32px 20px; gap: 24px; }
-            .welcome p, .welcome .hearts { display: none; }
-            .welcome h1 { font-size: 1.7rem; }
-            .fl-tl, .fl-bl { width: 42vw; } .fl-tr, .fl-br { width: 38vw; }
+        @media (max-width: 1000px) {
+            body { flex-direction: column; justify-content: center; overflow: auto; padding: 24px; }
+            .sambutan h1 { font-size: 34px; }
+            .sambutan p { font-size: 18px; }
+            .hati { padding-left: 0; }
+            .card { padding: 36px 24px; }
         }
     </style>
 </head>
 <body>
-    <!-- Dekorasi bunga -->
-    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-        <defs>
-            <symbol id="flower" viewBox="0 0 100 100">
-                <g fill="#f6a9c0"><circle cx="50" cy="24" r="21"/><circle cx="75" cy="42" r="21"/><circle cx="66" cy="72" r="21"/><circle cx="34" cy="72" r="21"/><circle cx="25" cy="42" r="21"/></g>
-                <circle cx="50" cy="52" r="20" fill="#f08bab" opacity=".55"/>
-                <circle cx="50" cy="52" r="11" fill="#fff"/><circle cx="50" cy="52" r="6" fill="#f6a9c0"/>
-            </symbol>
-            <symbol id="leaf" viewBox="0 0 60 100"><path d="M30 0C55 25 60 70 30 100C0 70 5 25 30 0Z" fill="#fff"/></symbol>
-            <symbol id="eye-open" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
-            <symbol id="eye-off" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M10.6 5.1A9.7 9.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.5 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7c1.6 0 3-.4 4.3-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
-        </defs>
-    </svg>
-    <svg class="fl fl-tl" viewBox="0 0 300 300" aria-hidden="true">
-        <use href="#leaf" x="-5" y="150" width="60" height="100" transform="rotate(35 25 200)"/>
-        <use href="#flower" x="40" y="30" width="140" height="140"/><use href="#flower" x="-10" y="-25" width="90" height="90"/>
-        <use href="#flower" x="130" y="-5" width="80" height="80"/><use href="#flower" x="20" y="150" width="60" height="60"/>
-        <use href="#flower" x="105" y="150" width="45" height="45"/>
-    </svg>
-    <svg class="fl fl-tr" viewBox="0 0 300 300" aria-hidden="true">
-        <use href="#leaf" x="20" y="120" width="60" height="100" transform="rotate(-30 50 170)"/>
-        <use href="#flower" x="130" y="40" width="160" height="160"/><use href="#flower" x="40" y="-20" width="100" height="100"/>
-        <use href="#flower" x="230" y="-20" width="90" height="90"/><use href="#flower" x="90" y="110" width="45" height="45"/>
-    </svg>
-    <svg class="fl fl-bl" viewBox="0 0 300 300" aria-hidden="true">
-        <use href="#leaf" x="120" y="60" width="60" height="100" transform="rotate(30 150 110)"/>
-        <use href="#leaf" x="-10" y="40" width="55" height="90" transform="rotate(-25 18 85)"/>
-        <use href="#flower" x="30" y="140" width="160" height="160"/><use href="#flower" x="-15" y="215" width="95" height="95"/>
-        <use href="#flower" x="150" y="215" width="90" height="90"/><use href="#flower" x="10" y="100" width="55" height="55"/>
-    </svg>
-    <svg class="fl fl-br" viewBox="0 0 300 300" aria-hidden="true">
-        <use href="#leaf" x="60" y="40" width="60" height="100" transform="rotate(-30 90 90)"/>
-        <use href="#flower" x="120" y="120" width="170" height="170"/><use href="#flower" x="30" y="200" width="100" height="100"/>
-        <use href="#flower" x="215" y="55" width="85" height="85"/><use href="#flower" x="85" y="110" width="45" height="45"/>
-    </svg>
 
-    <main class="auth">
-        <section class="welcome">
-            <h1>Selamat Datang<br>di Royal Florist</h1>
-            <p>Bunga indah untuk setiap<br>momen spesialmu.</p>
-            <svg class="hearts" viewBox="0 0 44 36" aria-hidden="true">
-                <path d="M14 8c-3-5-11-3-11 4 0 6 8 11 11 14 3-3 11-8 11-14 0-7-8-9-11-4Z" fill="#8b2346"/>
-                <path d="M31 14c-2-4-8-2-8 3 0 4 6 8 8 10 2-2 8-6 8-10 0-5-6-7-8-3Z" fill="#b63a5f"/>
-            </svg>
-        </section>
+<!-- Definisi bunga (dipakai berulang) -->
+<svg width="0" height="0" style="position:absolute">
+    <defs>
+        <symbol id="bunga" viewBox="0 0 200 200">
+            <g fill="#f7a8c0">
+                <circle cx="100" cy="45"  r="42"/>
+                <circle cx="152" cy="82"  r="42"/>
+                <circle cx="132" cy="146" r="42"/>
+                <circle cx="68"  cy="146" r="42"/>
+                <circle cx="48"  cy="82"  r="42"/>
+            </g>
+            <circle cx="100" cy="100" r="52" fill="#f293b1"/>
+            <circle cx="100" cy="100" r="26" fill="#fff"/>
+            <circle cx="100" cy="100" r="13" fill="#f7a8c0"/>
+        </symbol>
+        <symbol id="hati" viewBox="0 0 24 24">
+            <path d="M12 21s-8-5.4-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.600-8 11-8 11z"/>
+        </symbol>
+    </defs>
+</svg>
 
-        <div class="login-card">
-            <div class="brand-title">Login</div>
-            <div class="brand-subtitle">Masuk ke akun Royal Florist Anda</div>
+<svg class="bunga b1"><use href="#bunga"/></svg>
+<svg class="bunga b2"><use href="#bunga"/></svg>
+<svg class="bunga b3"><use href="#bunga"/></svg>
+<svg class="bunga b4"><use href="#bunga"/></svg>
+<svg class="bunga b5"><use href="#bunga"/></svg>
+<svg class="bunga b6"><use href="#bunga"/></svg>
+<svg class="bunga b7"><use href="#bunga"/></svg>
+<svg class="bunga b8"><use href="#bunga"/></svg>
+<svg class="bunga b9"><use href="#bunga"/></svg>
+<svg class="bunga b10"><use href="#bunga"/></svg>
 
-            <?php if (!empty($error)): ?>
-                <div class="alert" role="alert"><?= htmlspecialchars($error); ?></div>
-            <?php endif; ?>
+<div class="sambutan">
+    <h1>Selamat Datang<br>di Royal Florist</h1>
+    <p>Bunga indah untuk setiap<br>momen spesialmu.</p>
+    <div class="hati">
+        <svg width="38" height="38" fill="#8b2045"><use href="#hati"/></svg>
+        <svg width="26" height="26" fill="#c2335f"><use href="#hati"/></svg>
+    </div>
+</div>
 
-            <form method="POST" action="login.php">
-                <div class="form-group">
-                    <input type="email" id="email" name="email" placeholder="Email" aria-label="Email" required autofocus>
-                </div>
+<div class="card">
+    <h2>Login</h2>
+    <p class="sub">Masuk ke akun Royal Florist Anda</p>
 
-                <div class="form-group has-eye">
-                    <input type="password" id="password" name="password" placeholder="Password" aria-label="Password" required>
-                    <button type="button" class="eye" data-target="password" aria-label="Tampilkan password"><svg><use href="#eye-open"/></svg></button>
-                </div>
+    <?php if ($error !== ''): ?>
+        <div class="error"><?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
 
-                <button type="submit" class="btn-submit">Masuk</button>
-            </form>
-
-            <a href="register.php" class="link-reg">Belum punya akun? <b>Register di sini</b></a>
+    <form method="POST" action="">
+        <div class="field">
+            <input type="email" name="email" placeholder="Email"
+                   value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" required>
         </div>
-    </main>
+        <div class="field">
+            <input type="password" name="password" id="password" placeholder="Password" required>
+            <button type="button" class="mata" id="togglePw" aria-label="Tampilkan password">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#555" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+            </button>
+        </div>
+        <button type="submit" class="btn">Masuk</button>
+    </form>
 
-    <script>
-        document.querySelectorAll('.eye').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var input = document.getElementById(btn.dataset.target);
-                var show = input.type === 'password';
-                input.type = show ? 'text' : 'password';
-                btn.querySelector('use').setAttribute('href', show ? '#eye-off' : '#eye-open');
-                btn.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password');
-            });
-        });
-    </script>
+    <div class="foot">Belum punya akun? <a href="register.php">Register di sini</a></div>
+</div>
+
+<script>
+    document.getElementById('togglePw').addEventListener('click', function () {
+        var p = document.getElementById('password');
+        p.type = (p.type === 'password') ? 'text' : 'password';
+    });
+</script>
 </body>
 </html>
