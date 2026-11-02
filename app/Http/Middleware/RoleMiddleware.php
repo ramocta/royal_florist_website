@@ -4,27 +4,25 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class RoleMiddleware
 {
-    /**
-     * Pemakaian di route: RoleMiddleware::class . ':admin,karyawan'
-     */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        $user = Auth::user();
+        $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('login');
         }
 
-        $roleUser = strtolower(trim((string) $user->role));
-        $diizinkan = array_map(fn ($r) => strtolower(trim($r)), $roles);
-
-        if (!in_array($roleUser, $diizinkan, true)) {
-            abort(403, 'Anda tidak memiliki akses ke halaman ini.');
+        if (! in_array($user->role, $roles, true)) {
+            // Role tidak cocok: arahkan ke area yang sesuai, bukan 404
+            return redirect()->route(
+                in_array($user->role, ['admin', 'karyawan'], true)
+                    ? 'admin.dashboard'
+                    : 'pelanggan.katalog'
+            );
         }
 
         return $next($request);

@@ -11,11 +11,11 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    protected AuthService $authService;
+    private const ROLE_ADMIN_AREA = ['admin', 'karyawan'];
+    private const ROLE_DIIZINKAN  = ['admin', 'karyawan', 'pelanggan'];
 
-    public function __construct(AuthService $authService)
+    public function __construct(protected AuthService $authService)
     {
-        $this->authService = $authService;
     }
 
     public function showLogin()
@@ -39,27 +39,22 @@ class AuthController extends Controller
 
     public function login(LoginRequest $request)
     {
-        try {
-            $user = $this->authService->login($request->validated());
+        $user = $this->authService->login($request->validated());
 
-            if (!in_array($user->role, ['admin', 'pelanggan'])) {
-                throw ValidationException::withMessages([
-                    'email' => ['Akun ini tidak dapat login melalui halaman ini.'],
-                ]);
-            }
-
-            Auth::login($user);
-            $request->session()->regenerate();
-
-            if ($user->role === 'admin') {
-                return redirect()->route('admin.dashboard');
-            }
-
-            return redirect('/');
-            
-        } catch (ValidationException $e) {
-            throw $e;
+        if (! in_array($user->role, self::ROLE_DIIZINKAN, true)) {
+            throw ValidationException::withMessages([
+                'email' => ['Akun ini tidak dapat login melalui halaman ini.'],
+            ]);
         }
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        if (in_array($user->role, self::ROLE_ADMIN_AREA, true)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        return redirect()->route('pelanggan.katalog');
     }
 
     public function logout(Request $request)
