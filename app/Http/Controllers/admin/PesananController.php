@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class PesananController extends Controller
 {
@@ -32,17 +37,157 @@ class PesananController extends Controller
                                ->whereDate('diubah_pada', today())->count(),
         ];
 
-        $pesanan = Order::with(['user', 'items.product'])
-            ->when($request->q, fn ($query, $q) => $query->where(function ($w) use ($q) {
-                $w->where('no_invoice', 'like', "%{$q}%")
-                  ->orWhereHas('user', fn ($u) => $u->where('nama', 'like', "%{$q}%"));
-            }))
-            ->when($request->status, fn ($query, $s) => $query->where('status_pesanan', $s))
+        $pesanan = $this->queryPesanan($request)
             ->orderByDesc('id_order')
             ->paginate(5)
             ->withQueryString(); // filter tidak hilang saat pindah halaman
 
         return view('admin.pesanan-index', compact('pesanan', 'stat'));
+    }
+
+    // Export Excel. Ikut filter pencarian/status yang sedang aktif di daftar.
+    // - Kalau library phpoffice/phpspreadsheet sudah terpasang -> file .xlsx (lebih rapi)
+    // - Kalau belum -> otomatis pakai file .xls (XML Spreadsheet), tanpa library apa pun
+    public function export(Request $request)
+    {
+        $label = [
+            'menunggu_pembayaran' => 'Menunggu Pembayaran', 'menunggu_dikonfirmasi' => 'Menunggu Dikonfirmasi',
+            'diproses' => 'Diproses', 'siap_diambil' => 'Siap Kirim', 'selesai' => 'Selesai', 'dibatalkan' => 'Batal',
+        ];
+        $metode = ['bayar_di_toko' => 'Tunai', 'QRIS' => 'QRIS', 'transfer_bank' => 'Transfer Bank'];
+        $bayar  = ['belum_dibayar' => 'Belum Dibayar', 'proses' => 'Proses', 'lunas' => 'Lunas'];
+
+        $judul = [
+            'No', 'ID Pesanan', 'Tanggal Order', 'Pelanggan', 'No. Telepon', 'Alamat',
+            'Item Produk', 'Tgl Pengiriman', 'Metode Pembayaran', 'Status Pembayaran',
+            'Status Pesanan', 'Total (Rp)',
+        ];
+
+        $data = [];
+        $rows = $this->queryPesanan($request)->orderByDesc('id_order')->get();
+        foreach ($rows as $i => $o) {
+            $item = $o->items
+                ->map(fn ($it) => ($it->product->nama_produk ?? '-') . ' x' . $it->jumlah)
+                ->implode('; ');
+
+            $data[] = [
+                $i + 1,
+                (string) $o->no_invoice,
+                $o->dibuat_pada ? $o->dibuat_pada->format('d-m-Y H:i') : '-',
+                (string) ($o->user->nama ?? '-'),
+                (string) ($o->user->nmr_telepon ?? '-'),
+                (string) ($o->user->alamat ?? '-'),
+                $item,
+                $o->jadwal_pengambilan ? $o->jadwal_pengambilan->format('d-m-Y H:i') : '-',
+                $metode[$o->metode_pembayaran] ?? $o->metode_pembayaran,
+                $bayar[$o->status_pembayaran] ?? $o->status_pembayaran,
+                $label[$o->status_pesanan] ?? $o->status_pesanan,
+                (int) $o->total_harga,
+            ];
+        }
+
+        $tanggal = now()->format('Y-m-d');
+
+        return class_exists(Spreadsheet::class)
+            ? $this->unduhXlsx($judul, $data, "data-pesanan-{$tanggal}.xlsx")
+            : $this->unduhXml($judul, $data, "data-pesanan-{$tanggal}.xls");
+    }
+
+    // File .xlsx lewat PhpSpreadsheet
+    private function unduhXlsx(array $judul, array $data, string $namaFile)
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Data Pesanan');
+
+        $sheet->fromArray($judul, null, 'A1');
+        $sheet->getStyle('A1:L1')->applyFromArray([
+            'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '7A1C34']],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->freezePane('A2'); // baris judul tetap terlihat saat scroll
+
+        $r = 2;
+        foreach ($data as $baris) {
+            $telepon = $baris[4];
+            $baris[4] = null;
+            $sheet->fromArray($baris, null, "A{$r}");
+            // Paksa jadi teks supaya angka 0 di depan nomor telepon tidak hilang
+            $sheet->setCellValueExplicit("E{$r}", $telepon, DataType::TYPE_STRING);
+            $r++;
+        }
+
+        if ($r > 2) {
+            $sheet->getStyle('L2:L' . ($r - 1))->getNumberFormat()->setFormatCode('#,##0');
+        }
+        foreach (range('A', 'L') as $kolom) {
+            $sheet->getColumnDimension($kolom)->setAutoSize(true);
+        }
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, $namaFile, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    // File .xls (XML Spreadsheet 2003): bisa dibuka Excel, tanpa library tambahan
+    private function unduhXml(array $judul, array $data, string $namaFile)
+    {
+        $esc = fn ($v) => htmlspecialchars((string) $v, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+        $lebar = [35, 80, 100, 130, 100, 220, 260, 100, 120, 120, 130, 90];
+
+        $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        $xml .= '<?mso-application progid="Excel.Sheet"?>' . "\n";
+        $xml .= '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"'
+              . ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
+        $xml .= '<Styles>'
+              . '<Style ss:ID="h"><Font ss:Bold="1" ss:Color="#FFFFFF"/>'
+              . '<Interior ss:Color="#7A1C34" ss:Pattern="Solid"/></Style>'
+              . '<Style ss:ID="n"><NumberFormat ss:Format="#,##0"/></Style>'
+              . '</Styles>';
+        $xml .= '<Worksheet ss:Name="Data Pesanan"><Table>';
+        foreach ($lebar as $w) {
+            $xml .= '<Column ss:Width="' . $w . '"/>';
+        }
+
+        $xml .= '<Row>';
+        foreach ($judul as $j) {
+            $xml .= '<Cell ss:StyleID="h"><Data ss:Type="String">' . $esc($j) . '</Data></Cell>';
+        }
+        $xml .= '</Row>';
+
+        foreach ($data as $baris) {
+            $xml .= '<Row>';
+            foreach ($baris as $k => $v) {
+                if ($k === 0) {
+                    $xml .= '<Cell><Data ss:Type="Number">' . (int) $v . '</Data></Cell>';
+                } elseif ($k === 11) {
+                    $xml .= '<Cell ss:StyleID="n"><Data ss:Type="Number">' . (int) $v . '</Data></Cell>';
+                } else {
+                    $xml .= '<Cell><Data ss:Type="String">' . $esc($v) . '</Data></Cell>';
+                }
+            }
+            $xml .= '</Row>';
+        }
+        $xml .= '</Table></Worksheet></Workbook>';
+
+        return response($xml, 200, [
+            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $namaFile . '"',
+        ]);
+    }
+
+    // Query dasar daftar pesanan, dipakai bersama oleh index dan export
+    private function queryPesanan(Request $request)
+    {
+        return Order::with(['user', 'items.product'])
+            ->when($request->q, fn ($query, $q) => $query->where(function ($w) use ($q) {
+                $w->where('no_invoice', 'like', "%{$q}%")
+                  ->orWhereHas('user', fn ($u) => $u->where('nama', 'like', "%{$q}%"));
+            }))
+            ->when($request->status, fn ($query, $s) => $query->where('status_pesanan', $s));
     }
 
     // CREATE: tampilkan form
