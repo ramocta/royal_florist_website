@@ -1,246 +1,22 @@
-<?php
-require_once __DIR__ . '/../auth/koneksi.php';
+@php
+    $ikon = fn (string $n, int $u = 18): string => \App\Support\Ikon::svg($n, $u);
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-if (!isset($_SESSION['user_id']) && !isset($_SESSION['admin_logged_in'])) {
-    header('Location: ../auth/login.php');
-    exit;
-}
-
-/* ------------------------- Fungsi bantu --------------------------- */
-
-if (!function_exists('skalar')) {
-    function skalar(PDO $pdo, string $sql, array $params = [])
-    {
-        try {
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            $v = $stmt->fetchColumn();
-            return $v === false ? null : $v;
-        } catch (PDOException $e) {
-            return null;
-        }
-    }
-}
-
-function e($teks): string
-{
-    return htmlspecialchars((string) $teks, ENT_QUOTES, 'UTF-8');
-}
-
-function tanggalValid($d): bool
-{
-    $x = DateTime::createFromFormat('Y-m-d', (string) $d);
-    return $x && $x->format('Y-m-d') === $d;
-}
-
-function getNamaHariSingkat($tanggal): string
-{
-    $days = ['Sun' => 'Ming', 'Mon' => 'Sen', 'Tue' => 'Sel', 'Wed' => 'Rab', 'Thu' => 'Kam', 'Fri' => 'Jum', 'Sat' => 'Sab'];
-    return $days[date('D', strtotime($tanggal))] ?? '';
-}
-
-function ikon(string $nama, int $ukuran = 18): string
-{
-    static $path = [
-        'home'     => '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
-        'laporan'  => '<rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><polyline points="7.5 14.5 11 11 13.5 13.5 17 9"/>',
-        'user'     => '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
-        'cart'     => '<circle cx="9" cy="20" r="1.2"/><circle cx="18" cy="20" r="1.2"/><path d="M2 3h3l2.7 12.4a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6"/>',
-        'box'      => '<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7z"/><polyline points="3.3 7 12 12 20.7 7"/><line x1="12" y1="22" x2="12" y2="12"/>',
-        'database' => '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M20 5v14c0 1.7-3.6 3-8 3s-8-1.3-8-3V5"/><path d="M20 12c0 1.7-3.6 3-8 3s-8-1.3-8-3"/>',
-        'users'    => '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-1a5.5 5.5 0 0 1 5.5-5.5h2a5.5 5.5 0 0 1 5.5 5.5v1"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18.5 14a5.5 5.5 0 0 1 3 5v1"/>',
-        'progress' => '<path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><polyline points="20.5 3.5 20.5 7.5 16.5 7.5"/>',
-        'settings' => '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
-        'logout'   => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
-        'download' => '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
-        'printer'  => '<polyline points="6 9 6 3 18 3 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/>',
-        'calendar' => '<rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="3" y1="10" x2="21" y2="10"/>',
-        'bell'     => '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
-        'wallet'   => '<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/><path d="M16 14h.01"/>',
-        'trend'    => '<line x1="7" y1="17" x2="17" y2="7"/><polyline points="8 7 17 7 17 16"/>',
-        'aktivitas'=> '<polyline points="3 17 9 11 13 15 21 6"/><polyline points="15 6 21 6 21 12"/>',
-        'jam'      => '<circle cx="12" cy="12" r="9.5"/><polyline points="12 6.5 12 12 15.5 14"/>',
-        'tas'      => '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
-        'cari'     => '<circle cx="11" cy="11" r="7.5"/><line x1="21" y1="21" x2="16.7" y2="16.7"/>',
-        'chevron'  => '<polyline points="6 9 12 15 18 9"/>',
+    /* Menu sidebar. Ganti '#' dengan route(...) kalau halamannya sudah ada. */
+    $menu = [
+        ['href' => route('admin.dashboard'),       'ikon' => 'home',     'label' => 'Dashboard',          'aktif' => false],
+        ['href' => route('admin.laporan.index'),   'ikon' => 'laporan',  'label' => 'Laporan Penjualan',  'aktif' => true],
+        ['href' => '#',                            'ikon' => 'user',     'label' => 'Pelanggan',          'aktif' => false],
+        ['href' => route('admin.pesanan.index'),   'ikon' => 'cart',     'label' => 'Pesanan',            'aktif' => false],
+        ['href' => route('admin.produk.index'),    'ikon' => 'box',      'label' => 'Produk',             'aktif' => false],
+        ['href' => '#',                            'ikon' => 'database', 'label' => 'Stok',               'aktif' => false],
+        ['href' => route('admin.karyawan.index'),  'ikon' => 'users',    'label' => 'Manajemen Staff',    'aktif' => false],
+        ['href' => '#',                            'ikon' => 'progress', 'label' => 'Manajemen Progress', 'aktif' => false],
+        ['href' => '#',                            'ikon' => 'settings', 'label' => 'Pengaturan',         'aktif' => false],
     ];
-    return '<svg class="ikon" width="' . $ukuran . '" height="' . $ukuran . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-        . ($path[$nama] ?? '') . '</svg>';
-}
 
-function perubahan($sekarang, $sebelumnya, $cadanganDemo = null)
-{
-    if ($sebelumnya > 0) {
-        return (int) round((($sekarang - $sebelumnya) / $sebelumnya) * 100);
-    }
-    return $cadanganDemo;
-}
-
-/* ------------------------- Filter tanggal ------------------------- */
-
-$endDate = $_GET['end_date'] ?? date('Y-m-d');
-if (!tanggalValid($endDate)) {
-    $endDate = date('Y-m-d');
-}
-
-$startDate = $_GET['start_date'] ?? date('Y-m-d', strtotime('-6 days', strtotime($endDate)));
-if (!tanggalValid($startDate)) {
-    $startDate = date('Y-m-d', strtotime('-6 days', strtotime($endDate)));
-}
-
-if ($startDate > $endDate) {
-    [$startDate, $endDate] = [$endDate, $startDate];
-}
-
-$jumlahHari = (int) ((strtotime($endDate) - strtotime($startDate)) / 86400) + 1;
-$jumlahHari = min($jumlahHari, 31);
-$startDate  = date('Y-m-d', strtotime("$endDate -" . ($jumlahHari - 1) . " days"));
-
-$prevEnd   = date('Y-m-d', strtotime("$startDate -1 day"));
-$prevStart = date('Y-m-d', strtotime("$prevEnd -" . ($jumlahHari - 1) . " days"));
-
-/* --------------------------- Data grafik -------------------------- */
-
-$labelsGrafik = [];
-$dataGrafik   = [];
-
-for ($i = $jumlahHari - 1; $i >= 0; $i--) {
-    $dateLoop = date('Y-m-d', strtotime("$endDate -$i days"));
-    $labelsGrafik[] = [getNamaHariSingkat($dateLoop), date('d/m', strtotime($dateLoop))];
-
-    $dataGrafik[] = (float) (skalar(
-        $pdo,
-        "SELECT SUM(total_harga) FROM orders WHERE status_pembayaran = 'lunas' AND DATE(dibuat_pada) = ?",
-        [$dateLoop]
-    ) ?? 0);
-}
-
-/* ------------------------- Kartu ringkasan ------------------------ */
-
-$totalPendapatan = array_sum($dataGrafik);
-
-$totalTransaksi = (int) skalar(
-    $pdo,
-    "SELECT COUNT(*) FROM orders WHERE status_pembayaran = 'lunas' AND DATE(dibuat_pada) BETWEEN ? AND ?",
-    [$startDate, $endDate]
-);
-$pelangganBaru = (int) skalar($pdo, "SELECT COUNT(*) FROM users WHERE role = 'pelanggan'");
-$totalProdukTerjual = (int) skalar(
-    $pdo,
-    "SELECT SUM(oi.jumlah) FROM order_items oi
-     JOIN orders o ON o.id_order = oi.id_order
-     WHERE o.status_pembayaran = 'lunas' AND DATE(o.dibuat_pada) BETWEEN ? AND ?",
-    [$startDate, $endDate]
-);
-
-$pendapatanPrev = (float) (skalar(
-    $pdo,
-    "SELECT SUM(total_harga) FROM orders WHERE status_pembayaran = 'lunas' AND DATE(dibuat_pada) BETWEEN ? AND ?",
-    [$prevStart, $prevEnd]
-) ?? 0);
-$transaksiPrev = (int) (skalar(
-    $pdo,
-    "SELECT COUNT(*) FROM orders WHERE status_pembayaran = 'lunas' AND DATE(dibuat_pada) BETWEEN ? AND ?",
-    [$prevStart, $prevEnd]
-) ?? 0);
-
-$tren = [
-    'pendapatan' => perubahan($totalPendapatan, $pendapatanPrev),
-    'transaksi'  => perubahan($totalTransaksi, $transaksiPrev),
-    'pelanggan'  => null,
-    'produk'     => null,
-];
-
-/* ---------------------- Kategori terlaris ------------------------- */
-
-$kategoriTerlaris = ['labels' => [], 'data' => []];
-try {
-    $stmt = $pdo->prepare(
-        "SELECT c.category_name AS nama, SUM(oi.jumlah) AS total
-         FROM order_items oi
-         JOIN orders o ON o.id_order = oi.id_order
-         JOIN products p ON p.id_product = oi.id_product
-         JOIN categories c ON c.id_ctg = p.id_ctg
-         WHERE o.status_pembayaran = 'lunas' AND DATE(o.dibuat_pada) BETWEEN ? AND ?
-         GROUP BY c.id_ctg, c.category_name
-         ORDER BY total DESC"
-    );
-    $stmt->execute([$startDate, $endDate]);
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
-        $kategoriTerlaris['labels'][] = $r['nama'];
-        $kategoriTerlaris['data'][]   = (int) $r['total'];
-    }
-} catch (PDOException $e) {
-}
-$warnaKategori = ['#7B1830', '#A23A55', '#BF607A', '#D68DA1', '#E8B3C1', '#F5D9E0'];
-$totalKategori = array_sum($kategoriTerlaris['data']);
-
-/* ------------------------- Tabel detail --------------------------- */
-
-$querySearch = trim($_GET['search'] ?? '');
-$listDetail  = [];
-
-try {
-    $sql = "SELECT o.dibuat_pada AS tanggal, p.nama_produk, c.category_name AS kategori,
-                   oi.jumlah, oi.harga_satuan, (oi.jumlah * oi.harga_satuan) AS total
-            FROM order_items oi
-            JOIN orders o ON o.id_order = oi.id_order
-            JOIN products p ON p.id_product = oi.id_product
-            JOIN categories c ON c.id_ctg = p.id_ctg
-            WHERE o.status_pembayaran = 'lunas' AND DATE(o.dibuat_pada) BETWEEN ? AND ?";
-    $params = [$startDate, $endDate];
-    if ($querySearch !== '') {
-        $sql .= " AND p.nama_produk LIKE ?";
-        $params[] = "%$querySearch%";
-    }
-    $sql .= " ORDER BY o.dibuat_pada DESC LIMIT 5";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    $listDetail = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    $listDetail = [];
-}
-
-$listDetail = array_map(function ($row) {
-    return [
-        'tanggal'      => $row['tanggal'] ?? '',
-        'nama_produk'  => $row['nama_produk'] ?? '-',
-        'kategori'     => $row['kategori'] ?? '-',
-        'jumlah'       => (int) ($row['jumlah'] ?? 0),
-        'harga_satuan' => (float) ($row['harga_satuan'] ?? 0),
-        'total'        => (float) ($row['total'] ?? 0),
-    ];
-}, $listDetail);
-
-/* ------------------------- Menu sidebar --------------------------- */
-
-$menu = [
-    ['dashboard.php',         'home',     'Dashboard',          false],
-    ['laporan_penjualan.php', 'laporan',  'Laporan Penjualan',  true],
-    ['#',                     'user',     'Pelanggan',          false],
-    ['#',                     'cart',     'Pesanan',            false],
-    ['#',                     'box',      'Produk',             false],
-    ['#',                     'database', 'Stok',               false],
-    ['#',                     'users',    'Manajemen Staff',    false],
-    ['#',                     'progress', 'Manajemen Progress', false],
-    ['#',                     'settings', 'Pengaturan',         false],
-    ['../auth/logout.php',    'logout',   'Keluar',             false],
-];
-
-function badgeTren($nilai): string
-{
-    if ($nilai === null) {
-        return '<div class="tren netral"><span>Belum ada pembanding</span></div>';
-    }
-    $kelas = $nilai >= 0 ? 'naik' : 'turun';
-    $tanda = $nilai >= 0 ? '+' : '';
-    return '<div class="tren ' . $kelas . '">' . ikon('trend', 14) . '<b>' . $tanda . $nilai . '%</b><span>dari periode sebelumnya</span></div>';
-}
-?>
+    $warnaKategori = ['#7B1830', '#A23A55', '#BF607A', '#D68DA1', '#E8B3C1', '#F5D9E0'];
+    $namaAdmin = auth()->user()->nama ?? auth()->user()->name ?? 'Admin';
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -307,11 +83,11 @@ function badgeTren($nilai): string
             border: 1px solid var(--pink-garis); border-radius: 12px; overflow: hidden;
             box-shadow: 0 8px 24px rgba(123, 24, 48, .15); z-index: 30;
         }
-        .admin-menu .dropdown a {
-            display: flex; align-items: center; gap: 10px; padding: 12px 16px;
-            color: var(--maroon); text-decoration: none; font-size: 13px; font-weight: 600;
+        .admin-menu .dropdown button {
+            display: flex; align-items: center; gap: 10px; padding: 12px 16px; width: 100%;
+            color: var(--maroon); font-size: 13px; font-weight: 600; background: none; border: none; cursor: pointer;
         }
-        .admin-menu .dropdown a:hover { background: var(--pink-tabel); }
+        .admin-menu .dropdown button:hover { background: var(--pink-tabel); }
 
         /* ---------- Sidebar ---------- */
         .sidebar {
@@ -385,7 +161,6 @@ function badgeTren($nilai): string
         th:first-child { border-radius: 8px 0 0 8px; }
         th:last-child { border-radius: 0 8px 8px 0; }
         td { font-size: 11.5px; padding: 10px 12px; border-bottom: 1px solid #eee; color: #444; }
-        td b { font-weight: 600; }
         .kosong { text-align: center; color: #999; padding: 25px; }
         .table-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; color: var(--abu); flex-wrap: wrap; gap: 10px; }
         .paging { display: flex; gap: 6px; }
@@ -429,14 +204,14 @@ function badgeTren($nilai): string
     </svg>
 
     <header class="topbar">
-        <a href="dashboard.php" class="brand">
+        <a href="{{ route('admin.dashboard') }}" class="brand">
             <svg class="logo" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M24 8c-5 0-9 3.5-9 8 0 3.5 2.3 6 5 7.2M24 8c5 0 9 3.5 9 8 0 3.5-2.3 6-5 7.2"/>
-                <path d="M24 8c-2.2 2.5-2.2 6 0 9 2.2-3 2.2-6.500 0-9z"/>
-                <path d="M20 23.200c1.200.5 2.500.8 4 .8s2.800-.3 4-.8"/>
+                <path d="M24 8c-2.2 2.5-2.2 6 0 9 2.2-3 2.2-6.5 0-9z"/>
+                <path d="M20 23.2c1.2.5 2.5.8 4 .8s2.8-.3 4-.8"/>
                 <path d="M24 24v18"/>
-                <path d="M24 34c-4.500-.5-7.500-3-8.500-6.500 4 0 7.500 2 8.500 6.500z"/>
-                <path d="M24 38c4-.5 7-2.800 8-6 -3.800 0-7 1.800-8 6z"/>
+                <path d="M24 34c-4.5-.5-7.5-3-8.5-6.5 4 0 7.5 2 8.5 6.5z"/>
+                <path d="M24 38c4-.5 7-2.8 8-6-3.8 0-7 1.8-8 6z"/>
             </svg>
             <div class="brand-teks">
                 <div class="nama">Royal Florist</div>
@@ -445,27 +220,30 @@ function badgeTren($nilai): string
         </a>
 
         <div class="top-kanan">
-            <form method="get" class="date-pill" title="Pilih periode laporan">
-                <?= ikon('calendar', 18); ?>
-                <input type="date" name="start_date" value="<?= e($startDate); ?>" aria-label="Dari tanggal">
+            <form method="GET" action="{{ route('admin.laporan.index') }}" class="date-pill" title="Pilih periode laporan">
+                {!! $ikon('calendar', 18) !!}
+                <input type="date" name="start_date" value="{{ $startDate }}" aria-label="Dari tanggal">
                 <span class="sd">s/d</span>
-                <input type="date" name="end_date" value="<?= e($endDate); ?>" aria-label="Sampai tanggal">
-                <?php if ($querySearch !== ''): ?>
-                    <input type="hidden" name="search" value="<?= e($querySearch); ?>">
-                <?php endif; ?>
+                <input type="date" name="end_date" value="{{ $endDate }}" aria-label="Sampai tanggal">
+                @if ($search !== '')
+                    <input type="hidden" name="search" value="{{ $search }}">
+                @endif
                 <button type="submit">Terapkan</button>
             </form>
-            <span class="bell"><?= ikon('bell', 22); ?></span>
+            <span class="bell">{!! $ikon('bell', 22) !!}</span>
 
             <!-- Menu admin + Logout -->
             <details class="admin-menu">
                 <summary class="admin">
-                    <div class="avatar"><?= ikon('user', 20); ?></div>
-                    <span><?= e($_SESSION['nama'] ?? 'Admin'); ?></span>
-                    <?= ikon('chevron', 16); ?>
+                    <div class="avatar">{!! $ikon('user', 20) !!}</div>
+                    <span>{{ $namaAdmin }}</span>
+                    {!! $ikon('chevron', 16) !!}
                 </summary>
                 <div class="dropdown">
-                    <a href="../auth/logout.php" onclick="return confirm('Apakah Anda yakin ingin keluar?');"><?= ikon('logout', 17); ?> Logout</a>
+                    <form method="POST" action="{{ route('logout') }}" onsubmit="return confirm('Apakah Anda yakin ingin keluar?');">
+                        @csrf
+                        <button type="submit">{!! $ikon('logout', 17) !!} Logout</button>
+                    </form>
                 </div>
             </details>
         </div>
@@ -473,11 +251,11 @@ function badgeTren($nilai): string
 
     <aside class="sidebar">
         <ul class="sidebar-menu">
-            <?php foreach ($menu as [$href, $ic, $label, $aktif]): ?>
-                <li<?= $aktif ? ' class="active"' : ''; ?>>
-                    <a href="<?= e($href); ?>"><?= ikon($ic, 20); ?><span><?= e($label); ?></span></a>
+            @foreach ($menu as $item)
+                <li @class(['active' => $item['aktif'] ?? false])>
+                    <a href="{{ $item['href'] }}">{!! $ikon($item['ikon'], 20) !!}<span>{{ $item['label'] }}</span></a>
                 </li>
-            <?php endforeach; ?>
+            @endforeach
         </ul>
 
         <!-- Hiasan bunga di dasar sidebar -->
@@ -504,72 +282,56 @@ function badgeTren($nilai): string
         <div class="page-title-area">
             <div>
                 <h1>Laporan Penjualan</h1>
-                <p>Berikut adalah ringkasan dan detail penjualan Royal Florist periode <?= e(date('d/m/Y', strtotime($startDate))); ?> s/d <?= e(date('d/m/Y', strtotime($endDate))); ?>.</p>
+                <p>Berikut adalah ringkasan dan detail penjualan Royal Florist periode {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} s/d {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}.</p>
             </div>
             <div class="btn-group">
-                <button type="button" onclick="window.print()" class="btn-action"><?= ikon('download', 17); ?> Export PDF</button>
-                <button type="button" onclick="window.print()" class="btn-action"><?= ikon('printer', 17); ?> Cetak</button>
+                <button type="button" onclick="window.print()" class="btn-action">{!! $ikon('download', 17) !!} Export PDF</button>
+                <button type="button" onclick="window.print()" class="btn-action">{!! $ikon('printer', 17) !!} Cetak</button>
             </div>
         </div>
 
         <section class="cards-grid">
+            @foreach ($kartu as $k)
             <div class="card-stat">
                 <svg class="watermark"><use href="#bunga"/></svg>
                 <div class="card-head">
-                    <div class="card-icon"><?= ikon('cart', 19); ?></div>
-                    <div class="title">Total Penjualan</div>
+                    <div class="card-icon">{!! $ikon($k['ikon'], 19) !!}</div>
+                    <div class="title">{{ $k['judul'] }}</div>
                 </div>
-                <div class="value">Rp <?= number_format($totalPendapatan, 0, ',', '.'); ?></div>
-                <?= badgeTren($tren['pendapatan']); ?>
+                <div class="value">{{ $k['nilai'] }}</div>
+                @if ($k['tren'] === null)
+                    <div class="tren netral"><span>Belum ada pembanding</span></div>
+                @else
+                    <div class="tren {{ $k['tren'] >= 0 ? 'naik' : 'turun' }}">
+                        {!! $ikon('trend', 14) !!}<b>{{ $k['tren'] >= 0 ? '+' : '' }}{{ $k['tren'] }}%</b><span>dari periode sebelumnya</span>
+                    </div>
+                @endif
             </div>
-            <div class="card-stat">
-                <svg class="watermark"><use href="#bunga"/></svg>
-                <div class="card-head">
-                    <div class="card-icon"><?= ikon('wallet', 19); ?></div>
-                    <div class="title">Total Transaksi</div>
-                </div>
-                <div class="value"><?= $totalTransaksi; ?></div>
-                <?= badgeTren($tren['transaksi']); ?>
-            </div>
-            <div class="card-stat">
-                <svg class="watermark"><use href="#bunga"/></svg>
-                <div class="card-head">
-                    <div class="card-icon"><?= ikon('user', 19); ?></div>
-                    <div class="title">Pelanggan Baru</div>
-                </div>
-                <div class="value"><?= $pelangganBaru; ?></div>
-                <?= badgeTren($tren['pelanggan']); ?>
-            </div>
-            <div class="card-stat">
-                <svg class="watermark"><use href="#bunga"/></svg>
-                <div class="card-head">
-                    <div class="card-icon"><?= ikon('box', 19); ?></div>
-                    <div class="title">Total Produk Terjual</div>
-                </div>
-                <div class="value"><?= $totalProdukTerjual; ?></div>
-                <?= badgeTren($tren['produk']); ?>
-            </div>
+            @endforeach
         </section>
 
         <section class="charts-row">
             <div class="chart-box">
-                <div class="chart-title"><?= ikon('aktivitas', 22); ?> Grafik Penjualan</div>
+                <div class="chart-title">{!! $ikon('aktivitas', 22) !!} Grafik Penjualan</div>
                 <div class="chart-sub">Total penjualan per hari</div>
                 <div class="chart-wrap"><canvas id="lineChartPenjualan"></canvas></div>
             </div>
             <div class="chart-box">
-                <div class="chart-title"><?= ikon('jam', 22); ?> Kategori Produk Terlaris</div>
+                <div class="chart-title">{!! $ikon('jam', 22) !!} Kategori Produk Terlaris</div>
                 <div class="donut-area">
                     <div class="donut"><canvas id="doughnutChartKategori"></canvas></div>
                     <ul class="legend">
-                        <?php foreach ($kategoriTerlaris['labels'] as $i => $nama): ?>
-                            <?php $jml = $kategoriTerlaris['data'][$i]; $persen = $totalKategori > 0 ? round($jml / $totalKategori * 100) : 0; ?>
+                        @foreach ($kategoriLabels as $i => $nama)
+                            @php
+                                $jml = $kategoriData[$i];
+                                $persen = $totalKategori > 0 ? round($jml / $totalKategori * 100) : 0;
+                            @endphp
                             <li>
-                                <span class="dot" style="background:<?= e($warnaKategori[$i]); ?>"></span>
-                                <span class="nm"><?= e($nama); ?></span>
-                                <span class="jml"><?= (int) $jml; ?> (<?= (int) $persen; ?>%)</span>
+                                <span class="dot" style="background: {{ $warnaKategori[$i % count($warnaKategori)] }}"></span>
+                                <span class="nm">{{ $nama }}</span>
+                                <span class="jml">{{ $jml }} ({{ $persen }}%)</span>
                             </li>
-                        <?php endforeach; ?>
+                        @endforeach
                     </ul>
                 </div>
             </div>
@@ -577,12 +339,12 @@ function badgeTren($nilai): string
 
         <section class="table-box">
             <div class="table-head">
-                <div class="chart-title"><?= ikon('tas', 22); ?> Detail Penjualan</div>
-                <form method="get" class="search-box">
-                    <?= ikon('cari', 16); ?>
-                    <input type="text" name="search" placeholder="Cari produk..." value="<?= e($querySearch); ?>" aria-label="Cari produk">
-                    <input type="hidden" name="start_date" value="<?= e($startDate); ?>">
-                    <input type="hidden" name="end_date" value="<?= e($endDate); ?>">
+                <div class="chart-title">{!! $ikon('tas', 22) !!} Detail Penjualan</div>
+                <form method="GET" action="{{ route('admin.laporan.index') }}" class="search-box">
+                    {!! $ikon('cari', 16) !!}
+                    <input type="text" name="search" placeholder="Cari produk..." value="{{ $search }}" aria-label="Cari produk">
+                    <input type="hidden" name="start_date" value="{{ $startDate }}">
+                    <input type="hidden" name="end_date" value="{{ $endDate }}">
                 </form>
             </div>
             <table>
@@ -598,25 +360,23 @@ function badgeTren($nilai): string
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (empty($listDetail)): ?>
-                        <tr><td colspan="7" class="kosong">Data penjualan tidak ditemukan.</td></tr>
-                    <?php else: ?>
-                        <?php $no = 1; foreach ($listDetail as $row): ?>
+                    @forelse ($listDetail as $row)
                         <tr>
-                            <td><?= $no++; ?></td>
-                            <td><?= $row['tanggal'] ? e(date('d/m/Y', strtotime($row['tanggal']))) : '-'; ?></td>
-                            <td><?= e($row['nama_produk']); ?></td>
-                            <td><?= e($row['kategori']); ?></td>
-                            <td><?= (int) $row['jumlah']; ?></td>
-                            <td>Rp <?= number_format($row['harga_satuan'], 0, ',', '.'); ?></td>
-                            <td>Rp <?= number_format($row['total'], 0, ',', '.'); ?></td>
+                            <td>{{ $loop->iteration }}</td>
+                            <td>{{ $row->tanggal ? \Carbon\Carbon::parse($row->tanggal)->format('d/m/Y') : '-' }}</td>
+                            <td>{{ $row->nama_produk }}</td>
+                            <td>{{ $row->kategori }}</td>
+                            <td>{{ (int) $row->jumlah }}</td>
+                            <td>Rp {{ number_format((float) $row->harga_satuan, 0, ',', '.') }}</td>
+                            <td>Rp {{ number_format((float) $row->total, 0, ',', '.') }}</td>
                         </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                    @empty
+                        <tr><td colspan="7" class="kosong">Data penjualan tidak ditemukan.</td></tr>
+                    @endforelse
                 </tbody>
             </table>
             <div class="table-foot">
-                <div>Menampilkan <?= count($listDetail); ?> dari <?= $querySearch === '' ? $totalTransaksi : count($listDetail); ?> data</div>
+                <div>Menampilkan {{ count($listDetail) }} dari {{ $search === '' ? $totalTransaksi : count($listDetail) }} data</div>
                 <div class="paging">
                     <span>&lsaquo;</span><span class="aktif">1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>&rsaquo;</span>
                 </div>
@@ -626,7 +386,7 @@ function badgeTren($nilai): string
 
     <script>
         const rupiah = v => 'Rp ' + Number(v).toLocaleString('id-ID');
-        const dataPenjualan = <?= json_encode($dataGrafik); ?>;
+        const dataPenjualan = @json($dataGrafik);
 
         // Angka di atas titik grafik (hanya kalau titiknya tidak terlalu banyak)
         const labelTitik = {
@@ -648,7 +408,7 @@ function badgeTren($nilai): string
         new Chart(document.getElementById('lineChartPenjualan').getContext('2d'), {
             type: 'line',
             data: {
-                labels: <?= json_encode($labelsGrafik); ?>,
+                labels: @json($labelsGrafik),
                 datasets: [{
                     label: 'Penjualan',
                     data: dataPenjualan,
@@ -679,7 +439,8 @@ function badgeTren($nilai): string
                         ticks: { color: '#666', font: { size: 10 }, maxTicksLimit: 5, callback: v => rupiah(v) }
                     }
                 }
-            }
+            },
+            plugins: [labelTitik]
         });
 
         // Teks di tengah donat
@@ -694,7 +455,7 @@ function badgeTren($nilai): string
                 ctx.font = '600 11px Inter, sans-serif';
                 ctx.fillText('Total Terjual', x, y - 14);
                 ctx.font = '700 24px Inter, sans-serif';
-                ctx.fillText('<?= (int) $totalKategori; ?>', x, y + 10);
+                ctx.fillText(@json((string) $totalKategori), x, y + 10);
                 ctx.font = '400 11px Inter, sans-serif';
                 ctx.fillText('produk', x, y + 26);
                 ctx.restore();
@@ -704,10 +465,10 @@ function badgeTren($nilai): string
         new Chart(document.getElementById('doughnutChartKategori').getContext('2d'), {
             type: 'doughnut',
             data: {
-                labels: <?= json_encode($kategoriTerlaris['labels']); ?>,
+                labels: @json($kategoriLabels),
                 datasets: [{
-                    data: <?= json_encode($kategoriTerlaris['data']); ?>,
-                    backgroundColor: <?= json_encode($warnaKategori); ?>,
+                    data: @json($kategoriData),
+                    backgroundColor: @json($warnaKategori),
                     borderColor: '#fff',
                     borderWidth: 1.5
                 }]

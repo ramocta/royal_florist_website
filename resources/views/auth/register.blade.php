@@ -1,42 +1,3 @@
-<?php
-require_once 'koneksi.php';
-
-$error = '';
-$success = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nama     = trim($_POST['nama'] ?? '');
-    $email    = trim($_POST['email'] ?? '');
-    $password = trim($_POST['password'] ?? '');
-    $telepon  = trim($_POST['nmr_telepon'] ?? '');
-    $alamat   = trim($_POST['alamat'] ?? '');
-
-    if (!empty($nama) && !empty($email) && !empty($password)) {
-        try {
-            // Cek apakah email sudah terdaftar sebelumnya
-            $stmtCheck = $pdo->prepare("SELECT id_user FROM users WHERE email = ? LIMIT 1");
-            $stmtCheck->execute([$email]);
-            
-            if ($stmtCheck->rowCount() > 0) {
-                $error = 'Email sudah terdaftar, silakan gunakan email lain atau langsung masuk.';
-            } else {
-               $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                $role = 'pelanggan'; // Otomatis diset sebagai pelanggan
-
-                // Simpan ke database (pelanggan langsung aktif)
-$stmtInsert = $pdo->prepare("INSERT INTO users (nama, email, password, nmr_telepon, alamat, role, status) VALUES (?, ?, ?, ?, ?, ?, 'aktif')");
-$stmtInsert->execute([$nama, $email, $hashedPassword, $telepon, $alamat, $role]);
-
-                $success = 'Registrasi berhasil! Silakan <a href="login.php">masuk di sini</a>.';
-            }
-        } catch (PDOException $e) {
-            $error = 'Terjadi kesalahan sistem: ' . $e->getMessage();
-        }
-    } else {
-        $error = 'Harap isi kolom yang wajib diisi!';
-    }
-}
-?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -92,8 +53,7 @@ $stmtInsert->execute([$nama, $email, $hashedPassword, $telepon, $alamat, $role])
         .link-reg:hover b { text-decoration: underline; }
 
         .alert { background: #fdecef; color: #a31d3f; border: 1px solid #f5c2cd; border-radius: 10px; padding: 10px 12px; font-size: .78rem; margin-top: 18px; }
-        .alert-success { background: #f2f9f5; color: #2e7d32; border: 1px solid #c8e6c9; border-radius: 10px; padding: 10px 12px; font-size: .78rem; margin-top: 18px; }
-        .alert-success a { color: #2e7d32; text-decoration: underline; }
+        .alert div + div { margin-top: 4px; }
 
         @media (max-width: 860px) {
             .auth { grid-template-columns: 1fr; padding: 32px 20px; gap: 24px; }
@@ -154,33 +114,34 @@ $stmtInsert->execute([$nama, $email, $hashedPassword, $telepon, $alamat, $role])
             <div class="brand-title">Register Pelanggan</div>
             <div class="brand-subtitle">Buat akun untuk mulai berbelanja</div>
 
-            <?php if (!empty($error)): ?>
-                <div class="alert" role="alert"><?= htmlspecialchars($error); ?></div>
-            <?php endif; ?>
+            @if ($errors->any())
+                <div class="alert" role="alert">
+                    @foreach ($errors->all() as $pesan)
+                        <div>{{ $pesan }}</div>
+                    @endforeach
+                </div>
+            @endif
 
-            <?php if (!empty($success)): ?>
-                <div class="alert-success"><?= $success; ?></div>
-            <?php endif; ?>
-
-            <form method="POST" action="register.php">
+            <form method="POST" action="{{ route('register.proses') }}">
+                @csrf
                 <div class="form-group">
                     <label for="nama">Nama Lengkap</label>
-                    <input type="text" id="nama" name="nama" placeholder="Masukkan nama lengkap Anda" required>
+                    <input type="text" id="nama" name="nama" value="{{ old('nama') }}" placeholder="Masukkan nama lengkap Anda" required>
                 </div>
 
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email" placeholder="contoh@email.com" required>
+                    <input type="email" id="email" name="email" value="{{ old('email') }}" placeholder="contoh@email.com" required>
                 </div>
 
                 <div class="form-group">
                     <label for="nmr_telepon">Nomor Telepon / WA</label>
-                    <input type="text" id="nmr_telepon" name="nmr_telepon" placeholder="081234567890">
+                    <input type="text" id="nmr_telepon" name="nmr_telepon" value="{{ old('nmr_telepon') }}" placeholder="081234567890">
                 </div>
 
                 <div class="form-group">
                     <label for="alamat">Alamat</label>
-                    <input type="text" id="alamat" name="alamat" placeholder="Masukkan alamat pengiriman">
+                    <input type="text" id="alamat" name="alamat" value="{{ old('alamat') }}" placeholder="Masukkan alamat pengiriman">
                 </div>
 
                 <div class="form-group has-eye">
@@ -191,7 +152,7 @@ $stmtInsert->execute([$nama, $email, $hashedPassword, $telepon, $alamat, $role])
 
                 <div class="form-group has-eye">
                     <label for="konfirmasi">Konfirmasi Password</label>
-                    <input type="password" id="konfirmasi" placeholder="Ulangi password" required>
+                    <input type="password" id="konfirmasi" name="password_confirmation" placeholder="Ulangi password" required>
                     <button type="button" class="eye" data-target="konfirmasi" aria-label="Tampilkan password"><svg><use href="#eye-open"/></svg></button>
                 </div>
 
@@ -200,7 +161,7 @@ $stmtInsert->execute([$nama, $email, $hashedPassword, $telepon, $alamat, $role])
                 <button type="submit" class="btn-submit">Daftar Sekarang</button>
             </form>
 
-            <a href="login.php" class="link-reg">Sudah punya akun? <b>Login di sini</b></a>
+            <a href="{{ route('login') }}" class="link-reg">Sudah punya akun? <b>Login di sini</b></a>
         </div>
     </main>
 
@@ -216,7 +177,7 @@ $stmtInsert->execute([$nama, $email, $hashedPassword, $telepon, $alamat, $role])
         });
     </script>
     <script>
-        // Cek konfirmasi password di browser saja (tidak dikirim ke server)
+        // Cek cepat di browser; validasi resmi tetap dilakukan server (Laravel)
         var pw = document.getElementById('password'), kf = document.getElementById('konfirmasi');
         function cek() { kf.setCustomValidity(kf.value !== pw.value ? 'Konfirmasi password tidak sama.' : ''); }
         pw.addEventListener('input', cek); kf.addEventListener('input', cek);

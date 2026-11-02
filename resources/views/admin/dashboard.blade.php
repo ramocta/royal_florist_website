@@ -1,150 +1,21 @@
-<?php
-require_once __DIR__ . '/../auth/koneksi.php';
+@php
+    $ikon = fn (string $n, int $u = 18): string => \App\Support\Ikon::svg($n, $u);
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-// Jaga-jaga kalau skalar() belum didefinisikan di koneksi.php
-if (!function_exists('skalar')) {
-    function skalar(PDO $pdo, string $sql, array $params = [])
-    {
-        try {
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            $v = $stmt->fetchColumn();
-            return $v === false ? null : $v;
-        } catch (PDOException $e) {
-            return null;
-        }
-    }
-}
-
-// 1. Proteksi Session Login
-if (!isset($_SESSION['user_id']) && !isset($_SESSION['admin_logged_in'])) {
-    header('Location: ../auth/login.php');
-    exit;
-}
-
-// 2. Tangkap Tanggal dari Filter (Default Hari Ini)
-$selectedDate = $_GET['tanggal'] ?? date('Y-m-d');
-$cekTanggal = DateTime::createFromFormat('Y-m-d', (string) $selectedDate);
-if (!$cekTanggal || $cekTanggal->format('Y-m-d') !== $selectedDate) {
-    $selectedDate = date('Y-m-d');
-}
-
-// 3. Olah Data Grafik 7 Hari Terakhir (Urut dari 6 hari lalu sampai hari H yang dipilih)
-$labelsGrafik = [];
-$dataGrafik   = [];
-
-for ($i = 6; $i >= 0; $i--) {
-    $dateLoop = date('Y-m-d', strtotime("$selectedDate -$i days"));
-    // Array dua baris: tanggal di atas, nama hari di bawah
-    $labelsGrafik[] = [date('d/m', strtotime($dateLoop)), getNamaHari($dateLoop)];
-
-    $pendapatanHarian = skalar(
-        $pdo,
-        "SELECT SUM(total_harga) FROM orders WHERE status_pembayaran = 'lunas' AND DATE(dibuat_pada) = ?",
-        [$dateLoop]
-    ) ?? 0;
-
-    $nilaiHariIni = (float) $pendapatanHarian;
-
-    $dataGrafik[] = $nilaiHariIni;
-}
-
-$pendapatanToday = end($dataGrafik);
-
-$totalPesanan = (int) skalar($pdo, "SELECT COUNT(*) FROM orders WHERE DATE(dibuat_pada) = ?", [$selectedDate]);
-$totalUser    = (int) skalar($pdo, "SELECT COUNT(*) FROM users");
-$totalProduk  = (int) skalar($pdo, "SELECT COUNT(*) FROM products WHERE is_active = 1");
-
-// Pembanding: hari yang sama pada minggu sebelumnya (7 hari sebelum tanggal terpilih)
-$tglLalu = date('Y-m-d', strtotime("$selectedDate -7 days"));
-
-$pesananLalu = (int) skalar($pdo, "SELECT COUNT(*) FROM orders WHERE DATE(dibuat_pada) = ?", [$tglLalu]);
-$pendapatanLalu = (float) (skalar(
-    $pdo,
-    "SELECT SUM(total_harga) FROM orders WHERE status_pembayaran = 'lunas' AND DATE(dibuat_pada) = ?",
-    [$tglLalu]
-) ?? 0);
-
-/* Hitung persentase perubahan untuk kartu */
-function infoPersen($sekarang, $sebelumnya): array
-{
-    if ($sebelumnya <= 0) {
-        return ['teks' => '', 'ket' => 'Belum ada pembanding', 'kelas' => 'netral'];
-    }
-    $p = (int) round((($sekarang - $sebelumnya) / $sebelumnya) * 100);
-    return [
-        'teks'  => ($p >= 0 ? '+' : '') . $p . '%',
-        'ket'   => 'dari minggu sebelumnya',
-        'kelas' => $p >= 0 ? 'naik' : 'turun',
+    /* Menu sidebar. Ganti '#' dengan route(...) kalau halamannya sudah ada. */
+    $menu = [
+        ['href' => route('admin.dashboard'),       'ikon' => 'home',     'label' => 'Dashboard',          'aktif' => true],
+        ['href' => route('admin.laporan.index'),                            'ikon' => 'laporan',  'label' => 'Laporan Penjualan',  'aktif' => false],
+        ['href' => '#',                            'ikon' => 'user',     'label' => 'Pelanggan',          'aktif' => false],
+        ['href' => route('admin.pesanan.index'),   'ikon' => 'cart',     'label' => 'Pesanan',            'aktif' => false],
+        ['href' => route('admin.produk.index'),    'ikon' => 'box',      'label' => 'Produk',             'aktif' => false],
+        ['href' => '#',                            'ikon' => 'database', 'label' => 'Stok',               'aktif' => false],
+        ['href' => route('admin.karyawan.index'),  'ikon' => 'users',    'label' => 'Manajemen Staff',    'aktif' => false],
+        ['href' => '#',                            'ikon' => 'progress', 'label' => 'Manajemen Progress', 'aktif' => false],
+        ['href' => '#',                            'ikon' => 'settings', 'label' => 'Pengaturan',         'aktif' => false],
     ];
-}
 
-function getNamaHari($tanggal) {
-    $day = date('D', strtotime($tanggal));
-    switch($day){
-        case 'Sun': return 'Minggu';
-        case 'Mon': return 'Senin';
-        case 'Tue': return 'Selasa';
-        case 'Wed': return 'Rabu';
-        case 'Thu': return 'Kamis';
-        case 'Fri': return 'Jumat';
-        case 'Sat': return 'Sabtu';
-        default: return '';
-    }
-}
-
-/* Ikon garis (outline) seperti di desain Figma */
-function ikon(string $nama, int $ukuran = 18): string
-{
-    static $path = [
-        'home'     => '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
-        'laporan'  => '<rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><polyline points="7.5 14.5 11 11 13.5 13.5 17 9"/>',
-        'user'     => '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
-        'cart'     => '<circle cx="9" cy="20" r="1.2"/><circle cx="18" cy="20" r="1.2"/><path d="M2 3h3l2.7 12.4a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6"/>',
-        'box'      => '<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7z"/><polyline points="3.3 7 12 12 20.7 7"/><line x1="12" y1="22" x2="12" y2="12"/>',
-        'database' => '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M20 5v14c0 1.7-3.6 3-8 3s-8-1.3-8-3V5"/><path d="M20 12c0 1.7-3.6 3-8 3s-8-1.3-8-3"/>',
-        'users'    => '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-1a5.5 5.5 0 0 1 5.5-5.5h2a5.5 5.5 0 0 1 5.5 5.5v1"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18.5 14a5.5 5.5 0 0 1 3 5v1"/>',
-        'progress' => '<path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><polyline points="20.5 3.5 20.5 7.5 16.5 7.5"/>',
-        'settings' => '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
-        'logout'   => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
-        'calendar' => '<rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="3" y1="10" x2="21" y2="10"/>',
-        'bell'     => '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
-        'wallet'   => '<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/><path d="M16 14h.01"/>',
-        'trend'    => '<line x1="7" y1="17" x2="17" y2="7"/><polyline points="8 7 17 7 17 16"/>',
-        'batang'   => '<rect x="3.5" y="12" width="4" height="8.5" rx=".8"/><rect x="10" y="4" width="4" height="16.5" rx=".8"/><rect x="16.5" y="8.5" width="4" height="12" rx=".8"/>',
-        'chevron'  => '<polyline points="6 9 12 15 18 9"/>',
-    ];
-    return '<svg class="ikon" width="' . $ukuran . '" height="' . $ukuran . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-        . ($path[$nama] ?? '') . '</svg>';
-}
-
-/* Menu sidebar: [tautan, ikon, label, aktif?] */
-$menu = [
-    ['dashboard.php',                                                'home',     'Dashboard',          true],
-    ['laporan_penjualan.php?end_date=' . urlencode($selectedDate),   'laporan',  'Laporan Penjualan',  false],
-    ['#',                                                            'user',     'Pelanggan',          false],
-    ['#',                                                            'cart',     'Pesanan',            false],
-    ['#',                                                            'box',      'Produk',             false],
-    ['#',                                                            'database', 'Stok',               false],
-    ['#',                                                            'users',    'Manajemen Staff',    false],
-    ['#',                                                            'progress', 'Manajemen Progress', false],
-    ['#',                                                            'settings', 'Pengaturan',         false],
-];
-
-$namaAdmin = htmlspecialchars($_SESSION['nama'] ?? 'Admin');
-
-/* Kartu statistik: [judul, ikon, nilai, info perubahan] */
-$kartu = [
-    ['Total Pesanan',       'cart',   number_format($totalPesanan, 0, ',', '.'),            infoPersen($totalPesanan, $pesananLalu)],
-    ['Total User',          'user',   number_format($totalUser, 0, ',', '.'),               ['teks' => '', 'ket' => 'akun terdaftar', 'kelas' => 'netral']],
-    ['Total Produk',        'box',    number_format($totalProduk, 0, ',', '.'),             ['teks' => '', 'ket' => 'produk aktif', 'kelas' => 'netral']],
-    ['Pendapatan Hari Ini', 'wallet', 'Rp ' . number_format($pendapatanToday, 0, ',', '.'), infoPersen($pendapatanToday, $pendapatanLalu)],
-];
-?>
+    $namaAdmin = auth()->user()->nama ?? auth()->user()->name ?? 'Admin';
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -202,11 +73,12 @@ $kartu = [
             position: absolute; right: 0; top: 48px; min-width: 160px; background: #fff; border: 1px solid var(--pink-garis);
             border-radius: 10px; box-shadow: 0 6px 18px rgba(123, 24, 48, .12); padding: 6px;
         }
-        .dropdown a {
-            display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px;
+        .dropdown a, .dropdown button {
+            display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; width: 100%;
             color: var(--maroon); text-decoration: none; font-size: 13px; font-weight: 500;
+            background: none; border: none; cursor: pointer; font-family: inherit;
         }
-        .dropdown a:hover { background: var(--pink-bg); }
+        .dropdown a:hover, .dropdown button:hover { background: var(--pink-bg); }
 
         /* ---------- Sidebar ---------- */
         .sidebar {
@@ -292,7 +164,7 @@ $kartu = [
 
     <!-- TOP NAVBAR -->
     <header class="topbar">
-        <a href="dashboard.php" class="brand">
+        <a href="{{ route('admin.dashboard') }}" class="brand">
             <svg class="logo" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M24 8c-5 0-9 3.5-9 8 0 3.5 2.3 6 5 7.2M24 8c5 0 9 3.5 9 8 0 3.5-2.3 6-5 7.2"/>
                 <path d="M24 8c-2.2 2.5-2.2 6 0 9 2.2-3 2.2-6.5 0-9z"/>
@@ -309,21 +181,24 @@ $kartu = [
 
         <div class="top-kanan">
             <!-- Form Filter Tanggal -->
-            <form method="GET" id="dateFilterForm" class="date-pill">
-                <?= ikon('calendar', 18); ?>
-                <input type="date" name="tanggal" value="<?= htmlspecialchars($selectedDate); ?>" onchange="document.getElementById('dateFilterForm').submit();">
+            <form method="GET" action="{{ route('admin.dashboard') }}" id="dateFilterForm" class="date-pill">
+                {!! $ikon('calendar', 18) !!}
+                <input type="date" name="tanggal" value="{{ $selectedDate }}" onchange="document.getElementById('dateFilterForm').submit();">
             </form>
 
-            <span class="bell"><?= ikon('bell', 22); ?></span>
+            <span class="bell">{!! $ikon('bell', 22) !!}</span>
 
             <details class="admin-menu">
                 <summary>
-                    <span class="avatar"><?= ikon('user', 20); ?></span>
-                    <span class="nm"><?= $namaAdmin; ?></span>
-                    <?= ikon('chevron', 16); ?>
+                    <span class="avatar">{!! $ikon('user', 20) !!}</span>
+                    <span class="nm">{{ $namaAdmin }}</span>
+                    {!! $ikon('chevron', 16) !!}
                 </summary>
                 <div class="dropdown">
-                    <a href="../auth/logout.php" onclick="return confirm('Apakah Anda yakin ingin keluar?');"><?= ikon('logout', 17); ?> Logout</a>
+                    <form method="POST" action="{{ route('logout') }}" onsubmit="return confirm('Apakah Anda yakin ingin keluar?');">
+                        @csrf
+                        <button type="submit">{!! $ikon('logout', 17) !!} Logout</button>
+                    </form>
                 </div>
             </details>
         </div>
@@ -332,11 +207,11 @@ $kartu = [
     <!-- SIDEBAR -->
     <aside class="sidebar">
         <ul class="sidebar-menu">
-            <?php foreach ($menu as [$href, $ic, $label, $aktif]): ?>
-                <li<?= $aktif ? ' class="active"' : ''; ?>>
-                    <a href="<?= htmlspecialchars($href); ?>"><?= ikon($ic, 20); ?><span><?= htmlspecialchars($label); ?></span></a>
+            @foreach ($menu as $item)
+                <li @class(['active' => $item['aktif'] ?? false])>
+                    <a href="{{ $item['href'] }}">{!! $ikon($item['ikon'], 20) !!}<span>{{ $item['label'] }}</span></a>
                 </li>
-            <?php endforeach; ?>
+            @endforeach
         </ul>
 
         <!-- Hiasan bunga di dasar sidebar -->
@@ -364,43 +239,43 @@ $kartu = [
         <div class="container">
             <div class="welcome-section">
                 <h1>Dashboard Admin</h1>
-                <p>Selamat datang, <?= $namaAdmin; ?>! Berikut ringkasan data penjualan Royal Florist.</p>
+                <p>Selamat datang, {{ $namaAdmin }}! Berikut ringkasan data penjualan Royal Florist.</p>
             </div>
 
             <!-- CARDS STATISTIK -->
             <section class="cards-grid">
-                <?php foreach ($kartu as [$judul, $ic, $nilai, $info]): ?>
+                @foreach ($kartu as $k)
                 <div class="card">
                     <svg class="watermark"><use href="#bunga"/></svg>
                     <div class="card-head">
-                        <div class="card-icon"><?= ikon($ic, 20); ?></div>
-                        <div class="card-title"><?= htmlspecialchars($judul); ?></div>
+                        <div class="card-icon">{!! $ikon($k['ikon'], 20) !!}</div>
+                        <div class="card-title">{{ $k['judul'] }}</div>
                     </div>
-                    <div class="card-value"><?= htmlspecialchars($nilai); ?></div>
+                    <div class="card-value">{{ $k['nilai'] }}</div>
                     <div class="card-trend">
-                        <?php if ($info['teks'] !== ''): ?>
-                            <span class="<?= htmlspecialchars($info['kelas']); ?>"><?= ikon('trend', 14); ?><?= htmlspecialchars($info['teks']); ?></span>
-                        <?php endif; ?>
-                        <span><?= htmlspecialchars($info['ket']); ?></span>
+                        @if ($k['info']['teks'] !== '')
+                            <span class="{{ $k['info']['kelas'] }}">{!! $ikon('trend', 14) !!}{{ $k['info']['teks'] }}</span>
+                        @endif
+                        <span>{{ $k['info']['ket'] }}</span>
                     </div>
                 </div>
-                <?php endforeach; ?>
+                @endforeach
             </section>
 
             <!-- GRAFIK PENJUALAN -->
             <section class="chart-card">
                 <div class="chart-header">
                     <div class="chart-title">
-                        <?= ikon('batang', 30); ?>
+                        {!! $ikon('batang', 30) !!}
                         <div>
                             <h3>Grafik Penjualan</h3>
                             <p>Data penjualan selama 7 hari terakhir</p>
                         </div>
                     </div>
                     <div class="date-chip">
-                        <?= ikon('calendar', 17); ?>
-                        <?= date('d M Y', strtotime($selectedDate)); ?>
-                        <?= ikon('chevron', 15); ?>
+                        {!! $ikon('calendar', 17) !!}
+                        {{ \Carbon\Carbon::parse($selectedDate)->format('d M Y') }}
+                        {!! $ikon('chevron', 15) !!}
                     </div>
                 </div>
                 <div class="chart-wrap">
@@ -424,10 +299,10 @@ $kartu = [
         new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: <?= json_encode($labelsGrafik); ?>,
+                labels: @json($labelsGrafik),
                 datasets: [{
                     label: 'Pendapatan',
-                    data: <?= json_encode($dataGrafik); ?>,
+                    data: @json($dataGrafik),
                     backgroundColor: '#A84860',
                     borderRadius: 3,
                     barThickness: 50
