@@ -23,9 +23,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
                 $role = 'pelanggan'; // Otomatis diset sebagai pelanggan
 
-                // Simpan ke database
-                $stmtInsert = $pdo->prepare("INSERT INTO users (nama, email, password, nmr_telepon, alamat, role) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmtInsert->execute([$nama, $email, $hashedPassword, $telepon, $alamat, $role]);
+                // Simpan ke database (pelanggan langsung aktif)
+$stmtInsert = $pdo->prepare("INSERT INTO users (nama, email, password, nmr_telepon, alamat, role, status) VALUES (?, ?, ?, ?, ?, ?, 'aktif')");
+$stmtInsert->execute([$nama, $email, $hashedPassword, $telepon, $alamat, $role]);
 
                 $success = 'Registrasi berhasil! Silakan <a href="login.php">masuk di sini</a>.';
             }

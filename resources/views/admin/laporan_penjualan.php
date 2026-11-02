@@ -1,7 +1,6 @@
 <?php
 require_once __DIR__ . '/../auth/koneksi.php';
 
-// Mulai sesi hanya kalau koneksi.php belum memulainya
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -11,16 +10,8 @@ if (!isset($_SESSION['user_id']) && !isset($_SESSION['admin_logged_in'])) {
     exit;
 }
 
-/* ------------------------------------------------------------------
-   MODE DEMO
-   true  = kalau tabel masih kosong, tampilkan data contoh (untuk presentasi)
-   false = tampilkan data asli apa adanya (nol kalau memang belum ada)
-------------------------------------------------------------------- */
-$modeDemo = true;
-
 /* ------------------------- Fungsi bantu --------------------------- */
 
-// Jaga-jaga kalau skalar() ternyata hanya ada di dashboard.php
 if (!function_exists('skalar')) {
     function skalar(PDO $pdo, string $sql, array $params = [])
     {
@@ -52,7 +43,6 @@ function getNamaHariSingkat($tanggal): string
     return $days[date('D', strtotime($tanggal))] ?? '';
 }
 
-/* Ikon garis (outline) seperti di desain Figma */
 function ikon(string $nama, int $ukuran = 18): string
 {
     static $path = [
@@ -82,7 +72,6 @@ function ikon(string $nama, int $ukuran = 18): string
         . ($path[$nama] ?? '') . '</svg>';
 }
 
-/* Persentase perubahan dibanding periode sebelumnya (null kalau tidak bisa dihitung) */
 function perubahan($sekarang, $sebelumnya, $cadanganDemo = null)
 {
     if ($sebelumnya > 0) {
@@ -107,12 +96,10 @@ if ($startDate > $endDate) {
     [$startDate, $endDate] = [$endDate, $startDate];
 }
 
-// Maksimal 31 hari supaya grafik tetap terbaca
 $jumlahHari = (int) ((strtotime($endDate) - strtotime($startDate)) / 86400) + 1;
 $jumlahHari = min($jumlahHari, 31);
 $startDate  = date('Y-m-d', strtotime("$endDate -" . ($jumlahHari - 1) . " days"));
 
-// Periode pembanding (periode sebelumnya dengan panjang hari yang sama)
 $prevEnd   = date('Y-m-d', strtotime("$startDate -1 day"));
 $prevStart = date('Y-m-d', strtotime("$prevEnd -" . ($jumlahHari - 1) . " days"));
 
@@ -123,44 +110,74 @@ $dataGrafik   = [];
 
 for ($i = $jumlahHari - 1; $i >= 0; $i--) {
     $dateLoop = date('Y-m-d', strtotime("$endDate -$i days"));
-    // Label dua baris seperti desain: nama hari, lalu tanggal
     $labelsGrafik[] = [getNamaHariSingkat($dateLoop), date('d/m', strtotime($dateLoop))];
 
-    $pendapatanHarian = (float) (skalar($pdo, "SELECT SUM(total_harga) FROM pesanan WHERE DATE(tanggal) = ?", [$dateLoop]) ?? 0);
-
-    if ($pendapatanHarian <= 0 && $modeDemo) {
-        mt_srand(crc32($dateLoop));
-        $pendapatanHarian = mt_rand(5, 18) * 100000;
-    }
-    $dataGrafik[] = $pendapatanHarian;
+    $dataGrafik[] = (float) (skalar(
+        $pdo,
+        "SELECT SUM(total_harga) FROM orders WHERE status_pembayaran = 'lunas' AND DATE(dibuat_pada) = ?",
+        [$dateLoop]
+    ) ?? 0);
 }
 
 /* ------------------------- Kartu ringkasan ------------------------ */
 
 $totalPendapatan = array_sum($dataGrafik);
 
-$totalTransaksi = (int) (skalar($pdo, "SELECT COUNT(*) FROM pesanan WHERE DATE(tanggal) BETWEEN ? AND ?", [$startDate, $endDate]) ?: ($modeDemo ? 28 : 0));
-$pelangganBaru  = (int) (skalar($pdo, "SELECT COUNT(*) FROM users WHERE DATE(created_at) BETWEEN ? AND ?", [$startDate, $endDate]) ?: ($modeDemo ? 12 : 0));
-$totalProdukTerjual = (int) (skalar($pdo, "SELECT SUM(jumlah) FROM detail_pesanan") ?: ($modeDemo ? 62 : 0));
+$totalTransaksi = (int) skalar(
+    $pdo,
+    "SELECT COUNT(*) FROM orders WHERE status_pembayaran = 'lunas' AND DATE(dibuat_pada) BETWEEN ? AND ?",
+    [$startDate, $endDate]
+);
+$pelangganBaru = (int) skalar($pdo, "SELECT COUNT(*) FROM users WHERE role = 'pelanggan'");
+$totalProdukTerjual = (int) skalar(
+    $pdo,
+    "SELECT SUM(oi.jumlah) FROM order_items oi
+     JOIN orders o ON o.id_order = oi.id_order
+     WHERE o.status_pembayaran = 'lunas' AND DATE(o.dibuat_pada) BETWEEN ? AND ?",
+    [$startDate, $endDate]
+);
 
-// Perubahan dibanding periode sebelumnya
-$pendapatanPrev = (float) (skalar($pdo, "SELECT SUM(total_harga) FROM pesanan WHERE DATE(tanggal) BETWEEN ? AND ?", [$prevStart, $prevEnd]) ?? 0);
-$transaksiPrev  = (int) (skalar($pdo, "SELECT COUNT(*) FROM pesanan WHERE DATE(tanggal) BETWEEN ? AND ?", [$prevStart, $prevEnd]) ?? 0);
-$pelangganPrev  = (int) (skalar($pdo, "SELECT COUNT(*) FROM users WHERE DATE(created_at) BETWEEN ? AND ?", [$prevStart, $prevEnd]) ?? 0);
+$pendapatanPrev = (float) (skalar(
+    $pdo,
+    "SELECT SUM(total_harga) FROM orders WHERE status_pembayaran = 'lunas' AND DATE(dibuat_pada) BETWEEN ? AND ?",
+    [$prevStart, $prevEnd]
+) ?? 0);
+$transaksiPrev = (int) (skalar(
+    $pdo,
+    "SELECT COUNT(*) FROM orders WHERE status_pembayaran = 'lunas' AND DATE(dibuat_pada) BETWEEN ? AND ?",
+    [$prevStart, $prevEnd]
+) ?? 0);
 
 $tren = [
-    'pendapatan' => perubahan($totalPendapatan, $pendapatanPrev, $modeDemo ? 15 : null),
-    'transaksi'  => perubahan($totalTransaksi, $transaksiPrev, $modeDemo ? 12 : null),
-    'pelanggan'  => perubahan($pelangganBaru, $pelangganPrev, $modeDemo ? 33 : null),
-    'produk'     => $modeDemo ? 18 : null, // belum ada pembanding per periode untuk detail_pesanan
+    'pendapatan' => perubahan($totalPendapatan, $pendapatanPrev),
+    'transaksi'  => perubahan($totalTransaksi, $transaksiPrev),
+    'pelanggan'  => null,
+    'produk'     => null,
 ];
 
-$kategoriTerlaris = [
-    'labels' => ['Bucket', 'Bunga', 'Hantaran Box Akrilik', 'Hantaran Box Fiber', 'Papan Bunga', 'Lainnya'],
-    'data'   => [22, 15, 10, 8, 5, 2],
-];
-$warnaKategori  = ['#7B1830', '#A23A55', '#BF607A', '#D68DA1', '#E8B3C1', '#F5D9E0'];
-$totalKategori  = array_sum($kategoriTerlaris['data']);
+/* ---------------------- Kategori terlaris ------------------------- */
+
+$kategoriTerlaris = ['labels' => [], 'data' => []];
+try {
+    $stmt = $pdo->prepare(
+        "SELECT c.category_name AS nama, SUM(oi.jumlah) AS total
+         FROM order_items oi
+         JOIN orders o ON o.id_order = oi.id_order
+         JOIN products p ON p.id_product = oi.id_product
+         JOIN categories c ON c.id_ctg = p.id_ctg
+         WHERE o.status_pembayaran = 'lunas' AND DATE(o.dibuat_pada) BETWEEN ? AND ?
+         GROUP BY c.id_ctg, c.category_name
+         ORDER BY total DESC"
+    );
+    $stmt->execute([$startDate, $endDate]);
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $kategoriTerlaris['labels'][] = $r['nama'];
+        $kategoriTerlaris['data'][]   = (int) $r['total'];
+    }
+} catch (PDOException $e) {
+}
+$warnaKategori = ['#7B1830', '#A23A55', '#BF607A', '#D68DA1', '#E8B3C1', '#F5D9E0'];
+$totalKategori = array_sum($kategoriTerlaris['data']);
 
 /* ------------------------- Tabel detail --------------------------- */
 
@@ -168,50 +185,36 @@ $querySearch = trim($_GET['search'] ?? '');
 $listDetail  = [];
 
 try {
+    $sql = "SELECT o.dibuat_pada AS tanggal, p.nama_produk, c.category_name AS kategori,
+                   oi.jumlah, oi.harga_satuan, (oi.jumlah * oi.harga_satuan) AS total
+            FROM order_items oi
+            JOIN orders o ON o.id_order = oi.id_order
+            JOIN products p ON p.id_product = oi.id_product
+            JOIN categories c ON c.id_ctg = p.id_ctg
+            WHERE o.status_pembayaran = 'lunas' AND DATE(o.dibuat_pada) BETWEEN ? AND ?";
+    $params = [$startDate, $endDate];
     if ($querySearch !== '') {
-        $stmt = $pdo->prepare("SELECT * FROM pesanan WHERE nama_produk LIKE ? ORDER BY tanggal DESC LIMIT 5");
-        $stmt->execute(["%$querySearch%"]);
-    } else {
-        $stmt = $pdo->prepare("SELECT * FROM pesanan ORDER BY tanggal DESC LIMIT 5");
-        $stmt->execute();
+        $sql .= " AND p.nama_produk LIKE ?";
+        $params[] = "%$querySearch%";
     }
+    $sql .= " ORDER BY o.dibuat_pada DESC LIMIT 5";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
     $listDetail = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $listDetail = [];
 }
 
-// Samakan nama kolom supaya tidak muncul "Undefined index"
 $listDetail = array_map(function ($row) {
-    $jumlah = (int) ($row['jumlah'] ?? 1);
-    $harga  = (float) ($row['harga_satuan'] ?? 0);
     return [
         'tanggal'      => $row['tanggal'] ?? '',
         'nama_produk'  => $row['nama_produk'] ?? '-',
         'kategori'     => $row['kategori'] ?? '-',
-        'jumlah'       => $jumlah,
-        'harga_satuan' => $harga,
-        'total'        => (float) ($row['total'] ?? $row['total_harga'] ?? ($jumlah * $harga)),
+        'jumlah'       => (int) ($row['jumlah'] ?? 0),
+        'harga_satuan' => (float) ($row['harga_satuan'] ?? 0),
+        'total'        => (float) ($row['total'] ?? 0),
     ];
 }, $listDetail);
-
-// Data contoh dipakai kalau database kosong dan mode demo aktif (tetap bisa dicari)
-if (empty($listDetail) && $modeDemo) {
-    $listDetail = [
-        ['tanggal' => '2025-09-22', 'nama_produk' => 'Bunga Aster',                'kategori' => 'Bunga',                'jumlah' => 8, 'harga_satuan' => 25000,  'total' => 200000],
-        ['tanggal' => '2025-09-21', 'nama_produk' => 'Bucket Fresh Flower',        'kategori' => 'Bucket',               'jumlah' => 5, 'harga_satuan' => 150000, 'total' => 750000],
-        ['tanggal' => '2025-09-20', 'nama_produk' => 'Box Akrilik [30 x 40 cm]',   'kategori' => 'Hantaran Box Akrilik', 'jumlah' => 4, 'harga_satuan' => 120000, 'total' => 480000],
-        ['tanggal' => '2025-09-19', 'nama_produk' => 'Bucket Snack',               'kategori' => 'Bucket',               'jumlah' => 7, 'harga_satuan' => 85000,  'total' => 595000],
-        ['tanggal' => '2025-09-18', 'nama_produk' => 'Papan Bunga Kecil',          'kategori' => 'Papan Bunga',          'jumlah' => 3, 'harga_satuan' => 100000, 'total' => 300000],
-    ];
-
-    // Saring data contoh sesuai kata pencarian (nama produk atau kategori)
-    if ($querySearch !== '') {
-        $listDetail = array_values(array_filter($listDetail, function ($r) use ($querySearch) {
-            return stripos($r['nama_produk'], $querySearch) !== false
-                || stripos($r['kategori'], $querySearch) !== false;
-        }));
-    }
-}
 
 /* ------------------------- Menu sidebar --------------------------- */
 
@@ -228,7 +231,6 @@ $menu = [
     ['../auth/logout.php',    'logout',   'Keluar',             false],
 ];
 
-/* Kartu tren: tampilkan panah + persen */
 function badgeTren($nilai): string
 {
     if ($nilai === null) {
