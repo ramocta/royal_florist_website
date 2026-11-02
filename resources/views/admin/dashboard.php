@@ -1,14 +1,37 @@
 <?php
 require_once __DIR__ . '/../auth/koneksi.php';
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Jaga-jaga kalau skalar() belum didefinisikan di koneksi.php
+if (!function_exists('skalar')) {
+    function skalar(PDO $pdo, string $sql, array $params = [])
+    {
+        try {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $v = $stmt->fetchColumn();
+            return $v === false ? null : $v;
+        } catch (PDOException $e) {
+            return null;
+        }
+    }
+}
+
 // 1. Proteksi Session Login
 if (!isset($_SESSION['user_id']) && !isset($_SESSION['admin_logged_in'])) {
-    header('Location: login.php');
+    header('Location: ../auth/login.php');
     exit;
 }
 
 // 2. Tangkap Tanggal dari Filter (Default Hari Ini)
 $selectedDate = $_GET['tanggal'] ?? date('Y-m-d');
+$cekTanggal = DateTime::createFromFormat('Y-m-d', (string) $selectedDate);
+if (!$cekTanggal || $cekTanggal->format('Y-m-d') !== $selectedDate) {
+    $selectedDate = date('Y-m-d');
+}
 
 // 3. Olah Data Grafik 7 Hari Terakhir (Urut dari 6 hari lalu sampai hari H yang dipilih)
 $labelsGrafik = [];
@@ -19,29 +42,46 @@ for ($i = 6; $i >= 0; $i--) {
     // Array dua baris: tanggal di atas, nama hari di bawah
     $labelsGrafik[] = [date('d/m', strtotime($dateLoop)), getNamaHari($dateLoop)];
 
-    $pendapatanHarian = skalar($pdo, "SELECT SUM(total_harga) FROM pesanan WHERE DATE(tanggal) = ?", [$dateLoop]) ?? 0;
+    $pendapatanHarian = skalar(
+        $pdo,
+        "SELECT SUM(total_harga) FROM orders WHERE status_pembayaran = 'lunas' AND DATE(dibuat_pada) = ?",
+        [$dateLoop]
+    ) ?? 0;
 
-    if ($pendapatanHarian > 0) {
-        $nilaiHariIni = (float) $pendapatanHarian;
-    } else {
-        mt_srand(crc32($dateLoop));
-        $nilaiHariIni = mt_rand(4, 20) * 100000;
-    }
+    $nilaiHariIni = (float) $pendapatanHarian;
 
     $dataGrafik[] = $nilaiHariIni;
 }
 
 $pendapatanToday = end($dataGrafik);
 
-$totalPesananDB = skalar($pdo, "SELECT COUNT(*) FROM pesanan WHERE DATE(tanggal) = ?", [$selectedDate]);
-if ($totalPesananDB !== null && $totalPesananDB > 0) {
-    $totalPesanan = $totalPesananDB;
-} else {
-    $totalPesanan = (int) round($pendapatanToday / 85000);
-}
+$totalPesanan = (int) skalar($pdo, "SELECT COUNT(*) FROM orders WHERE DATE(dibuat_pada) = ?", [$selectedDate]);
+$totalUser    = (int) skalar($pdo, "SELECT COUNT(*) FROM users");
+$totalProduk  = (int) skalar($pdo, "SELECT COUNT(*) FROM products WHERE is_active = 1");
 
-$totalUser   = skalar($pdo, "SELECT COUNT(*) FROM users") ?? 45;
-$totalProduk = skalar($pdo, "SELECT COUNT(*) FROM produk") ?? 30;
+// Pembanding: hari yang sama pada minggu sebelumnya (7 hari sebelum tanggal terpilih)
+$tglLalu = date('Y-m-d', strtotime("$selectedDate -7 days"));
+
+$pesananLalu = (int) skalar($pdo, "SELECT COUNT(*) FROM orders WHERE DATE(dibuat_pada) = ?", [$tglLalu]);
+$pendapatanLalu = (float) (skalar(
+    $pdo,
+    "SELECT SUM(total_harga) FROM orders WHERE status_pembayaran = 'lunas' AND DATE(dibuat_pada) = ?",
+    [$tglLalu]
+) ?? 0);
+
+/* Hitung persentase perubahan untuk kartu */
+function infoPersen($sekarang, $sebelumnya): array
+{
+    if ($sebelumnya <= 0) {
+        return ['teks' => '', 'ket' => 'Belum ada pembanding', 'kelas' => 'netral'];
+    }
+    $p = (int) round((($sekarang - $sebelumnya) / $sebelumnya) * 100);
+    return [
+        'teks'  => ($p >= 0 ? '+' : '') . $p . '%',
+        'ket'   => 'dari minggu sebelumnya',
+        'kelas' => $p >= 0 ? 'naik' : 'turun',
+    ];
+}
 
 function getNamaHari($tanggal) {
     $day = date('D', strtotime($tanggal));
@@ -97,12 +137,12 @@ $menu = [
 
 $namaAdmin = htmlspecialchars($_SESSION['nama'] ?? 'Admin');
 
-/* Kartu statistik */
+/* Kartu statistik: [judul, ikon, nilai, info perubahan] */
 $kartu = [
-    ['Total Pesanan',       'cart',   number_format($totalPesanan, 0, ',', '.'),             '+12%'],
-    ['Total User',          'user',   number_format($totalUser, 0, ',', '.'),                '+8%'],
-    ['Total Produk',        'box',    number_format($totalProduk, 0, ',', '.'),              '+5%'],
-    ['Pendapatan Hari Ini', 'wallet', 'Rp ' . number_format($pendapatanToday, 0, ',', '.'),  '+15%'],
+    ['Total Pesanan',       'cart',   number_format($totalPesanan, 0, ',', '.'),            infoPersen($totalPesanan, $pesananLalu)],
+    ['Total User',          'user',   number_format($totalUser, 0, ',', '.'),               ['teks' => '', 'ket' => 'akun terdaftar', 'kelas' => 'netral']],
+    ['Total Produk',        'box',    number_format($totalProduk, 0, ',', '.'),             ['teks' => '', 'ket' => 'produk aktif', 'kelas' => 'netral']],
+    ['Pendapatan Hari Ini', 'wallet', 'Rp ' . number_format($pendapatanToday, 0, ',', '.'), infoPersen($pendapatanToday, $pendapatanLalu)],
 ];
 ?>
 <!DOCTYPE html>
@@ -125,6 +165,7 @@ $kartu = [
             --teks: #2B2B2B;
             --abu: #6F6F6F;
             --hijau: #2E8B57;
+            --merah: #C0392B;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: #fff; color: var(--teks); min-height: 100vh; }
@@ -200,6 +241,8 @@ $kartu = [
         .card-value { font-size: 30px; font-weight: 600; color: var(--maroon); margin: 14px 0 16px; line-height: 1.1; position: relative; z-index: 1; }
         .card-trend { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--abu); position: relative; z-index: 1; }
         .card-trend .naik { display: flex; align-items: center; gap: 4px; color: var(--hijau); font-weight: 600; }
+        .card-trend .turun { display: flex; align-items: center; gap: 4px; color: var(--merah); font-weight: 600; }
+        .card-trend .turun .ikon { transform: rotate(90deg); }
         .watermark { position: absolute; right: -6px; bottom: -10px; width: 100px; height: 100px; color: var(--maroon); opacity: .08; }
 
         /* Grafik */
@@ -326,7 +369,7 @@ $kartu = [
 
             <!-- CARDS STATISTIK -->
             <section class="cards-grid">
-                <?php foreach ($kartu as [$judul, $ic, $nilai, $persen]): ?>
+                <?php foreach ($kartu as [$judul, $ic, $nilai, $info]): ?>
                 <div class="card">
                     <svg class="watermark"><use href="#bunga"/></svg>
                     <div class="card-head">
@@ -335,8 +378,10 @@ $kartu = [
                     </div>
                     <div class="card-value"><?= htmlspecialchars($nilai); ?></div>
                     <div class="card-trend">
-                        <span class="naik"><?= ikon('trend', 14); ?><?= htmlspecialchars($persen); ?></span>
-                        <span>dari minggu sebelumnya</span>
+                        <?php if ($info['teks'] !== ''): ?>
+                            <span class="<?= htmlspecialchars($info['kelas']); ?>"><?= ikon('trend', 14); ?><?= htmlspecialchars($info['teks']); ?></span>
+                        <?php endif; ?>
+                        <span><?= htmlspecialchars($info['ket']); ?></span>
                     </div>
                 </div>
                 <?php endforeach; ?>
