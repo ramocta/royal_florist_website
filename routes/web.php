@@ -5,7 +5,7 @@ use App\Http\Controllers\admin\KaryawanController;
 use App\Http\Controllers\admin\LaporanPenjualanController;
 use App\Http\Controllers\admin\PesananController;
 use App\Http\Controllers\admin\ProdukController;
-use App\Http\Controllers\WebAuthController;
+use App\Http\Controllers\AuthController;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -14,11 +14,11 @@ Route::get('/', function () {
 });
 
 // Login, Registrasi, Logout
-Route::get('/login', [WebAuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [WebAuthController::class, 'login'])->name('login.proses');
-Route::get('/register', [WebAuthController::class, 'showRegister'])->name('register');
-Route::post('/register', [WebAuthController::class, 'register'])->name('register.proses');
-Route::post('/logout', [WebAuthController::class, 'logout'])->middleware('auth')->name('logout');
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login'])->name('login.proses');
+Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+Route::post('/register', [AuthController::class, 'register'])->name('register.proses');
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
 // Area admin: hanya untuk user yang sudah login dengan role admin atau karyawan.
 // Kalau Manajemen Staff mau khusus admin saja, pindahkan route karyawan ke grup
