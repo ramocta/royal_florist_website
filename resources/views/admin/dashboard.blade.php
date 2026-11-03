@@ -142,6 +142,65 @@
             .main-content { margin-left: 0; }
             .brand-teks .slogan, .admin-menu summary .nm { display: none; }
         }
+
+        /* ---------- Responsif (tablet & HP) ---------- */
+        .menu-toggle {
+            display: none; width: 40px; height: 40px; align-items: center; justify-content: center; flex-shrink: 0;
+            background: #fff; border: 1px solid var(--pink-garis); border-radius: 10px; color: var(--maroon); cursor: pointer;
+        }
+        .sidebar-backdrop { display: none; }
+
+        @media screen and (max-width: 900px) {
+            body.menu-open { overflow: hidden; }
+
+            /* Header: baris 1 = menu, logo, lonceng, admin. Baris 2 = filter tanggal */
+            .topbar { position: sticky; height: auto; min-height: 60px; padding: 8px 14px; flex-wrap: wrap; gap: 8px 10px; }
+            .top-kanan { display: contents; }
+            .menu-toggle { display: flex; order: 0; }
+            .brand { order: 1; margin-right: auto; }
+            .bell { order: 2; }
+            .admin-menu { order: 3; }
+            .date-pill { order: 4; flex: 1 1 100%; flex-wrap: wrap; justify-content: center; }
+            .date-pill input[type=date] { flex: 1 1 110px; min-width: 0; width: auto; font-size: 14px; }
+            .date-pill button { flex: 1 1 100%; padding: 8px; }
+            .brand-teks .slogan { display: none; }
+            .brand-teks .nama { font-size: 24px; }
+            .brand svg.logo { width: 34px; height: 34px; }
+
+            /* Sidebar jadi menu geser (drawer) */
+            .sidebar { display: flex !important; top: 0; width: 260px; max-width: 84vw; padding-top: 8px; z-index: 50; transform: translateX(-105%); transition: transform .25s ease; }
+            body.menu-open .sidebar { transform: none; box-shadow: 6px 0 24px rgba(0, 0, 0, .25); }
+            .sidebar-backdrop { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(43, 12, 20, .45); opacity: 0; pointer-events: none; transition: opacity .25s; }
+            body.menu-open .sidebar-backdrop { opacity: 1; pointer-events: auto; }
+
+            /* Konten */
+            .main-content { margin: 0 !important; min-height: 0; padding: 16px 14px 24px; }
+            .container { padding: 0; }
+            .welcome-section h1, .page-title-area h1 { font-size: 22px; }
+            .welcome-section p { margin-bottom: 18px; }
+            .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+            .card-value, .card-stat .value { font-size: 24px; }
+            .chart-card, .chart-box, .table-box { padding: 14px; }
+            .chart-title h3 { font-size: 17px; }
+            .chart-wrap { height: 260px; }
+            .btn-group { width: 100%; }
+            .btn-action { flex: 1; justify-content: center; }
+            .search-box { min-width: 0; width: 100%; }
+            table { min-width: 640px; }
+            .table-foot { justify-content: center; }
+            footer { flex-direction: column; gap: 4px; text-align: center; padding: 12px 14px 20px; }
+        }
+
+        @media screen and (max-width: 600px) {
+            .admin-menu summary span:not(.avatar) { display: none; }
+        }
+
+        @media screen and (max-width: 520px) {
+            .cards-grid { grid-template-columns: 1fr; }
+            .donut-area { flex-direction: column; align-items: stretch; }
+            .donut-area .donut { margin: 0 auto; }
+            .chart-sub { margin-left: 0; }
+        }
     </style>
 </head>
 <body>
@@ -164,6 +223,9 @@
 
     <!-- TOP NAVBAR -->
     <header class="topbar">
+        <button type="button" class="menu-toggle" id="menuToggle" aria-label="Buka menu" aria-expanded="false">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        </button>
         <a href="{{ route('admin.dashboard') }}" class="brand">
             <svg class="logo" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M24 8c-5 0-9 3.5-9 8 0 3.5 2.3 6 5 7.2M24 8c5 0 9 3.5 9 8 0 3.5-2.3 6-5 7.2"/>
@@ -205,6 +267,7 @@
     </header>
 
     <!-- SIDEBAR -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
     <aside class="sidebar">
         <ul class="sidebar-menu">
             @foreach ($menu as $item)
@@ -305,7 +368,7 @@
                     data: @json($dataGrafik),
                     backgroundColor: '#A84860',
                     borderRadius: 3,
-                    barThickness: 50
+                    maxBarThickness: 50
                 }]
             },
             options: {
@@ -323,6 +386,12 @@
                         color: '#7B1830',
                         font: { weight: '600', size: 10.5 },
                         formatter: function(value) {
+                            if (window.innerWidth < 700) {
+                                if (value === 0) return '';
+                                return value >= 1000000
+                                    ? (value / 1000000).toFixed(1).replace('.0', '').replace('.', ',') + ' jt'
+                                    : Math.round(value / 1000) + ' rb';
+                            }
                             return 'Rp ' + value.toLocaleString('id-ID');
                         }
                     }
@@ -343,6 +412,9 @@
                             color: '#555',
                             font: { size: 10.5 },
                             callback: function(value) {
+                                if (window.innerWidth < 700) {
+                                    return value === 0 ? '0' : (value / 1000000).toString().replace('.', ',') + ' jt';
+                                }
                                 return value.toLocaleString('id-ID');
                             }
                         }
@@ -350,6 +422,22 @@
                 }
             }
         });
+    </script>
+    <script>
+        // Buka/tutup menu samping di layar kecil
+        (function () {
+            var body = document.body;
+            var tombol = document.getElementById('menuToggle');
+            var latar = document.getElementById('sidebarBackdrop');
+            function atur(buka) {
+                body.classList.toggle('menu-open', buka);
+                tombol.setAttribute('aria-expanded', buka ? 'true' : 'false');
+            }
+            tombol.addEventListener('click', function () { atur(!body.classList.contains('menu-open')); });
+            latar.addEventListener('click', function () { atur(false); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') atur(false); });
+            window.addEventListener('resize', function () { if (window.innerWidth > 900) atur(false); });
+        })();
     </script>
 </body>
 </html>

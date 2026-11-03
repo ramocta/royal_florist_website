@@ -61,6 +61,17 @@
             .welcome h1 { font-size: 1.7rem; }
             .fl-tl, .fl-bl { width: 42vw; } .fl-tr, .fl-br { width: 38vw; }
         }
+
+        /* ---------- Responsif ---------- */
+        @media (max-width: 860px) {
+            .fl { opacity: .55; }
+            .form-group input { font-size: 16px; }
+        }
+        @media (max-width: 480px) {
+            .auth { padding: 20px 14px; gap: 16px; }
+            .login-card { padding: 26px 18px; border-radius: 16px; }
+            .welcome h1 { font-size: 1.5rem; }
+        }
     </style>
 </head>
 <body>

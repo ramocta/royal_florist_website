@@ -70,6 +70,23 @@
             .hati { padding-left: 0; }
             .card { padding: 36px 24px; }
         }
+
+        /* ---------- Responsif ---------- */
+        @media (max-width: 1000px) { body { overflow-x: hidden; } }
+        @media (max-width: 600px) {
+            body { padding: 16px; justify-content: flex-start; gap: 8px; }
+            .bunga { opacity: .45; }
+            .b2, .b3, .b5, .b8 { display: none; }
+            .sambutan { padding: 8px 0; text-align: center; }
+            .sambutan h1 { font-size: 28px; margin-bottom: 12px; }
+            .sambutan p { font-size: 16px; margin-bottom: 8px; }
+            .hati { display: none; }
+            .card { padding: 28px 18px; border-radius: 24px; }
+            .card h2 { font-size: 28px; }
+            .card .sub { margin-bottom: 20px; }
+            .field input { padding: 15px 16px; font-size: 16px; }
+            .btn { padding: 15px; font-size: 16px; }
+        }
     </style>
 </head>
 <body>
