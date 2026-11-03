@@ -3,6 +3,7 @@
 use App\Http\Controllers\admin\DashboardController;
 use App\Http\Controllers\admin\KaryawanController;
 use App\Http\Controllers\admin\LaporanPenjualanController;
+use App\Http\Controllers\admin\PelangganController;
 use App\Http\Controllers\admin\PesananController;
 use App\Http\Controllers\admin\ProdukController;
 use App\Http\Controllers\AuthController;
@@ -63,6 +64,15 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::get('produk/{produk}/edit', [ProdukController::class, 'edit'])->name('produk.edit');
         Route::put('produk/{produk}', [ProdukController::class, 'update'])->name('produk.update');
         Route::delete('produk/{produk}', [ProdukController::class, 'destroy'])->name('produk.destroy');
+
+        // Pelanggan (route statis export & create harus di atas {pelanggan})
+        Route::get('pelanggan', [PelangganController::class, 'index'])->name('pelanggan.index');
+        Route::get('pelanggan/export', [PelangganController::class, 'export'])->name('pelanggan.export');
+        Route::get('pelanggan/create', [PelangganController::class, 'create'])->name('pelanggan.create');
+        Route::post('pelanggan', [PelangganController::class, 'store'])->name('pelanggan.store');
+        Route::get('pelanggan/{pelanggan}', [PelangganController::class, 'show'])->name('pelanggan.show');
+        Route::get('pelanggan/{pelanggan}/edit', [PelangganController::class, 'edit'])->name('pelanggan.edit');
+        Route::put('pelanggan/{pelanggan}', [PelangganController::class, 'update'])->name('pelanggan.update');
 
         // Pesanan
         Route::get('pesanan', [PesananController::class, 'index'])->name('pesanan.index');
