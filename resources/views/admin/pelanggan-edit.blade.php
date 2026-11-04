@@ -30,7 +30,7 @@
         <div>
             <label for="kategori" class="mb-1 block text-sm font-medium text-maroon">Kategori</label>
             <select id="kategori" name="kategori" class="{{ $input }}">
-                @foreach (['Baru', 'Reguler', 'VIP'] as $c)
+                @foreach (['Baru', 'Lama'] as $c)
                     <option value="{{ $c }}" @selected(old('kategori', $pelanggan->kategori) === $c)>{{ $c }}</option>
                 @endforeach
             </select>

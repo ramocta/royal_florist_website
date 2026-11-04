@@ -6,17 +6,14 @@
 @php
     $rp = fn ($n) => 'Rp ' . number_format($n, 0, ',', '.');
 
-    // warna badge per kategori
     $badge = [
-        'VIP'     => 'bg-amber-100 text-amber-800',
-        'Reguler' => 'bg-green-100 text-green-800',
-        'Baru'    => 'bg-blue-100 text-blue-800',
+        'Lama' => 'bg-amber-100 text-amber-800',
+        'Baru' => 'bg-blue-100 text-blue-800',
     ];
 @endphp
 
 <div class="space-y-5">
 
-    {{-- HEADER --}}
     <section class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-pinkline bg-white px-6 py-5">
         <div>
             <h1 class="text-xl font-bold text-maroon">Daftar Pelanggan</h1>
@@ -32,7 +29,6 @@
         </div>
     </section>
 
-    {{-- KARTU STATISTIK --}}
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div class="relative rounded-2xl border border-l-4 border-pinkline border-l-maroon bg-white p-4">
             <span class="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-pinksoft text-maroon">
@@ -47,8 +43,8 @@
             <span class="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-pinksoft text-maroon">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linejoin="round" d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z"/></svg>
             </span>
-            <p class="text-xs text-neutral-600">Pelanggan VIP</p>
-            <p class="mt-2 text-3xl font-bold text-neutral-900">{{ number_format($vip, 0, ',', '.') }}</p>
+            <p class="text-xs text-neutral-600">Pelanggan Lama</p>
+            <p class="mt-2 text-3xl font-bold text-neutral-900">{{ number_format($lama, 0, ',', '.') }}</p>
             <p class="mt-1 text-[11px] text-amber-700">Transaksi &gt; 5 Juta/bln</p>
         </div>
 
@@ -71,7 +67,6 @@
         </div>
     </section>
 
-    {{-- TABEL --}}
     <section class="rounded-2xl border border-pinkline bg-white p-6">
         <form method="GET" class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div class="flex w-full max-w-md items-center gap-2 rounded-lg border border-pinkline bg-white px-3 py-2">
@@ -83,7 +78,7 @@
             <select name="kategori" onchange="this.form.submit()"
                     class="rounded-lg border border-pinkline bg-white py-2 pl-3 pr-8 text-xs text-neutral-800 focus:outline-none">
                 <option value="">Semua Kategori</option>
-                @foreach (['VIP', 'Reguler', 'Baru'] as $c)
+                @foreach (['Lama', 'Baru'] as $c)
                     <option value="{{ $c }}" @selected($kat === $c)>{{ $c }}</option>
                 @endforeach
             </select>
@@ -117,7 +112,12 @@
                             <td class="px-4 py-4 font-bold text-neutral-900">{{ $rp($p->total_belanja) }}</td>
                             <td class="px-4 py-4 font-bold text-maroon">
                                 <a href="{{ route('admin.pelanggan.show', $p) }}" class="hover:underline">Detail</a> |
-                                <a href="{{ route('admin.pelanggan.edit', $p) }}" class="hover:underline">Edit</a>
+                                <form method="POST" action="{{ route('admin.pelanggan.destroy', $p) }}" class="inline"
+                                      onsubmit="return confirm('Hapus pelanggan {{ addslashes($p->nama) }}?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="font-bold text-rose-600 hover:underline">Hapus</button>
+                                </form>
                             </td>
                         </tr>
                     @empty
