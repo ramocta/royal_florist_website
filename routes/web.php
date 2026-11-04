@@ -3,6 +3,8 @@
 use App\Http\Controllers\admin\KaryawanController;
 use App\Http\Controllers\admin\PesananController;
 use App\Http\Controllers\admin\ProdukController;
+use App\Http\Controllers\admin\ProfilController;
+use App\Http\Controllers\pelanggan\CheckoutController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -33,4 +35,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('pesanan', [PesananController::class, 'index'])->name('pesanan.index');
     Route::get('pesanan/create', [PesananController::class, 'create'])->name('pesanan.create');
     Route::post('pesanan', [PesananController::class, 'store'])->name('pesanan.store');
+
+    // Admin Profil
+    Route::get('profil', [ProfilController::class, 'index'])->name('profil');
+    Route::put('profil', [ProfilController::class, 'update'])->name('profil.update');
+    Route::put('profil/password', [ProfilController::class, 'updatePassword'])->name('profil.password');
+
 });
+
+// Pelanggan Checkout
+Route::get('/checkout', [CheckoutController::class, 'index'])
+    ->name('checkout');
+
+Route::post('/checkout', [CheckoutController::class, 'store'])
+    ->name('checkout.store');
