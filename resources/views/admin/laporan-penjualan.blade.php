@@ -5,7 +5,7 @@
     $menu = [
         ['href' => route('admin.dashboard'),       'ikon' => 'home',     'label' => 'Dashboard',          'aktif' => false],
         ['href' => route('admin.laporan.index'),   'ikon' => 'laporan',  'label' => 'Laporan Penjualan',  'aktif' => true],
-        ['href' => '#',                            'ikon' => 'user',     'label' => 'Pelanggan',          'aktif' => false],
+        ['href' => route('admin.pelanggan.index'), 'ikon' => 'user',     'label' => 'Pelanggan',          'aktif' => false],
         ['href' => route('admin.pesanan.index'),   'ikon' => 'cart',     'label' => 'Pesanan',            'aktif' => false],
         ['href' => route('admin.produk.index'),    'ikon' => 'box',      'label' => 'Produk',             'aktif' => false],
         ['href' => '#',                            'ikon' => 'database', 'label' => 'Stok',               'aktif' => false],
