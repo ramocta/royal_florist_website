@@ -2,55 +2,70 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
-use App\Http\Resources\UserResource;
 use App\Services\AuthService;
-use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
-use Exception;
-
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    use ApiResponse;
+    private const ROLE_ADMIN_AREA = ['admin', 'karyawan'];
+    private const ROLE_DIIZINKAN  = ['admin', 'karyawan', 'pelanggan'];
 
-    public function __construct(private AuthService $authService) {}
+    public function __construct(protected AuthService $authService)
+    {
+    }
+
+    public function showLogin()
+    {
+        return view('auth.login');
+    }
+
+    public function showRegister()
+    {
+        return view('auth.register');
+    }
 
     public function register(RegisterRequest $request)
     {
-        try {
-            $result = $this->authService->register($request->validated());
+        $this->authService->register($request->validated());
 
-            return $this->successResponse([
-                'user' => new UserResource($result['user']),
-                'token' => $result['token'],
-            ], 'Registrasi Berhasil', 200);
-        } catch (Exception $e) {
-            $code = ($e->getCode() >= 400 && $e->getCode() < 600) ? $e->getCode() : 400;
-            return $this->errorResponse($e->getMessage(), $code);
-        }
+        return redirect()
+            ->route('login')
+            ->with('success', 'Registrasi berhasil. Silakan login.');
     }
 
     public function login(LoginRequest $request)
     {
-        try {
-            $result = $this->authService->login($request->validated());
+        $user = $this->authService->login($request->validated());
 
-            return $this->successResponse([
-                'user' => new UserResource($result['user']),
-                'token' => $result['token'],
-            ], 'Login Berhasil', 200);
-        } catch (Exception $e) {
-            $code = ($e->getCode() >= 400 && $e->getCode() < 600) ? $e->getCode() : 400;
-            return $this->errorResponse($e->getMessage(), $code);
+        if (! in_array($user->role, self::ROLE_DIIZINKAN, true)) {
+            throw ValidationException::withMessages([
+                'email' => ['Akun ini tidak dapat login melalui halaman ini.'],
+            ]);
         }
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        if (in_array($user->role, self::ROLE_ADMIN_AREA, true)) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        return redirect()->route('pelanggan.katalog');
     }
 
     public function logout(Request $request)
     {
-        $this->authService->logout($request->user());
-        return $this->successResponse(null, 'Logout Berhasil', 200);
+        Auth::logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()
+            ->route('login')
+            ->with('success', 'Berhasil logout.');
     }
 }

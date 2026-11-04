@@ -1,110 +1,21 @@
-<?php
-require_once __DIR__ . '/../auth/koneksi.php';
+@php
+    $ikon = fn (string $n, int $u = 18): string => \App\Support\Ikon::svg($n, $u);
 
-// 1. Proteksi Session Login
-if (!isset($_SESSION['user_id']) && !isset($_SESSION['admin_logged_in'])) {
-    header('Location: login.php');
-    exit;
-}
-
-// 2. Tangkap Tanggal dari Filter (Default Hari Ini)
-$selectedDate = $_GET['tanggal'] ?? date('Y-m-d');
-
-// 3. Olah Data Grafik 7 Hari Terakhir (Urut dari 6 hari lalu sampai hari H yang dipilih)
-$labelsGrafik = [];
-$dataGrafik   = [];
-
-for ($i = 6; $i >= 0; $i--) {
-    $dateLoop = date('Y-m-d', strtotime("$selectedDate -$i days"));
-    // Array dua baris: tanggal di atas, nama hari di bawah
-    $labelsGrafik[] = [date('d/m', strtotime($dateLoop)), getNamaHari($dateLoop)];
-
-    $pendapatanHarian = skalar($pdo, "SELECT SUM(total_harga) FROM pesanan WHERE DATE(tanggal) = ?", [$dateLoop]) ?? 0;
-
-    if ($pendapatanHarian > 0) {
-        $nilaiHariIni = (float) $pendapatanHarian;
-    } else {
-        mt_srand(crc32($dateLoop));
-        $nilaiHariIni = mt_rand(4, 20) * 100000;
-    }
-
-    $dataGrafik[] = $nilaiHariIni;
-}
-
-$pendapatanToday = end($dataGrafik);
-
-$totalPesananDB = skalar($pdo, "SELECT COUNT(*) FROM pesanan WHERE DATE(tanggal) = ?", [$selectedDate]);
-if ($totalPesananDB !== null && $totalPesananDB > 0) {
-    $totalPesanan = $totalPesananDB;
-} else {
-    $totalPesanan = (int) round($pendapatanToday / 85000);
-}
-
-$totalUser   = skalar($pdo, "SELECT COUNT(*) FROM users") ?? 45;
-$totalProduk = skalar($pdo, "SELECT COUNT(*) FROM produk") ?? 30;
-
-function getNamaHari($tanggal) {
-    $day = date('D', strtotime($tanggal));
-    switch($day){
-        case 'Sun': return 'Minggu';
-        case 'Mon': return 'Senin';
-        case 'Tue': return 'Selasa';
-        case 'Wed': return 'Rabu';
-        case 'Thu': return 'Kamis';
-        case 'Fri': return 'Jumat';
-        case 'Sat': return 'Sabtu';
-        default: return '';
-    }
-}
-
-/* Ikon garis (outline) seperti di desain Figma */
-function ikon(string $nama, int $ukuran = 18): string
-{
-    static $path = [
-        'home'     => '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
-        'laporan'  => '<rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><polyline points="7.5 14.5 11 11 13.5 13.5 17 9"/>',
-        'user'     => '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
-        'cart'     => '<circle cx="9" cy="20" r="1.2"/><circle cx="18" cy="20" r="1.2"/><path d="M2 3h3l2.7 12.4a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6"/>',
-        'box'      => '<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7z"/><polyline points="3.3 7 12 12 20.7 7"/><line x1="12" y1="22" x2="12" y2="12"/>',
-        'database' => '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M20 5v14c0 1.7-3.6 3-8 3s-8-1.3-8-3V5"/><path d="M20 12c0 1.7-3.6 3-8 3s-8-1.3-8-3"/>',
-        'users'    => '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-1a5.5 5.5 0 0 1 5.5-5.5h2a5.5 5.5 0 0 1 5.5 5.5v1"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18.5 14a5.5 5.5 0 0 1 3 5v1"/>',
-        'progress' => '<path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><polyline points="20.5 3.5 20.5 7.5 16.5 7.5"/>',
-        'settings' => '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
-        'logout'   => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
-        'calendar' => '<rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="3" y1="10" x2="21" y2="10"/>',
-        'bell'     => '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
-        'wallet'   => '<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/><path d="M16 14h.01"/>',
-        'trend'    => '<line x1="7" y1="17" x2="17" y2="7"/><polyline points="8 7 17 7 17 16"/>',
-        'batang'   => '<rect x="3.5" y="12" width="4" height="8.5" rx=".8"/><rect x="10" y="4" width="4" height="16.5" rx=".8"/><rect x="16.5" y="8.5" width="4" height="12" rx=".8"/>',
-        'chevron'  => '<polyline points="6 9 12 15 18 9"/>',
+    /* Menu sidebar. Ganti '#' dengan route(...) kalau halamannya sudah ada. */
+    $menu = [
+        ['href' => route('admin.dashboard'),       'ikon' => 'home',     'label' => 'Dashboard',          'aktif' => true],
+        ['href' => route('admin.laporan.index'),                            'ikon' => 'laporan',  'label' => 'Laporan Penjualan',  'aktif' => false],
+        ['href' => '#',                            'ikon' => 'user',     'label' => 'Pelanggan',          'aktif' => false],
+        ['href' => route('admin.pesanan.index'),   'ikon' => 'cart',     'label' => 'Pesanan',            'aktif' => false],
+        ['href' => route('admin.produk.index'),    'ikon' => 'box',      'label' => 'Produk',             'aktif' => false],
+        ['href' => '#',                            'ikon' => 'database', 'label' => 'Stok',               'aktif' => false],
+        ['href' => route('admin.karyawan.index'),  'ikon' => 'users',    'label' => 'Manajemen Staff',    'aktif' => false],
+        ['href' => '#',                            'ikon' => 'progress', 'label' => 'Manajemen Progress', 'aktif' => false],
+        ['href' => '#',                            'ikon' => 'settings', 'label' => 'Pengaturan',         'aktif' => false],
     ];
-    return '<svg class="ikon" width="' . $ukuran . '" height="' . $ukuran . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-        . ($path[$nama] ?? '') . '</svg>';
-}
 
-/* Menu sidebar: [tautan, ikon, label, aktif?] */
-$menu = [
-    ['dashboard.php',                                                'home',     'Dashboard',          true],
-    ['laporan_penjualan.php?end_date=' . urlencode($selectedDate),   'laporan',  'Laporan Penjualan',  false],
-    ['#',                                                            'user',     'Pelanggan',          false],
-    ['#',                                                            'cart',     'Pesanan',            false],
-    ['#',                                                            'box',      'Produk',             false],
-    ['#',                                                            'database', 'Stok',               false],
-    ['#',                                                            'users',    'Manajemen Staff',    false],
-    ['#',                                                            'progress', 'Manajemen Progress', false],
-    ['#',                                                            'settings', 'Pengaturan',         false],
-];
-
-$namaAdmin = htmlspecialchars($_SESSION['nama'] ?? 'Admin');
-
-/* Kartu statistik */
-$kartu = [
-    ['Total Pesanan',       'cart',   number_format($totalPesanan, 0, ',', '.'),             '+12%'],
-    ['Total User',          'user',   number_format($totalUser, 0, ',', '.'),                '+8%'],
-    ['Total Produk',        'box',    number_format($totalProduk, 0, ',', '.'),              '+5%'],
-    ['Pendapatan Hari Ini', 'wallet', 'Rp ' . number_format($pendapatanToday, 0, ',', '.'),  '+15%'],
-];
-?>
+    $namaAdmin = auth()->user()->nama ?? auth()->user()->name ?? 'Admin';
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -125,6 +36,7 @@ $kartu = [
             --teks: #2B2B2B;
             --abu: #6F6F6F;
             --hijau: #2E8B57;
+            --merah: #C0392B;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: #fff; color: var(--teks); min-height: 100vh; }
@@ -161,11 +73,12 @@ $kartu = [
             position: absolute; right: 0; top: 48px; min-width: 160px; background: #fff; border: 1px solid var(--pink-garis);
             border-radius: 10px; box-shadow: 0 6px 18px rgba(123, 24, 48, .12); padding: 6px;
         }
-        .dropdown a {
-            display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px;
+        .dropdown a, .dropdown button {
+            display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; width: 100%;
             color: var(--maroon); text-decoration: none; font-size: 13px; font-weight: 500;
+            background: none; border: none; cursor: pointer; font-family: inherit;
         }
-        .dropdown a:hover { background: var(--pink-bg); }
+        .dropdown a:hover, .dropdown button:hover { background: var(--pink-bg); }
 
         /* ---------- Sidebar ---------- */
         .sidebar {
@@ -200,6 +113,8 @@ $kartu = [
         .card-value { font-size: 30px; font-weight: 600; color: var(--maroon); margin: 14px 0 16px; line-height: 1.1; position: relative; z-index: 1; }
         .card-trend { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--abu); position: relative; z-index: 1; }
         .card-trend .naik { display: flex; align-items: center; gap: 4px; color: var(--hijau); font-weight: 600; }
+        .card-trend .turun { display: flex; align-items: center; gap: 4px; color: var(--merah); font-weight: 600; }
+        .card-trend .turun .ikon { transform: rotate(90deg); }
         .watermark { position: absolute; right: -6px; bottom: -10px; width: 100px; height: 100px; color: var(--maroon); opacity: .08; }
 
         /* Grafik */
@@ -227,6 +142,65 @@ $kartu = [
             .main-content { margin-left: 0; }
             .brand-teks .slogan, .admin-menu summary .nm { display: none; }
         }
+
+        /* ---------- Responsif (tablet & HP) ---------- */
+        .menu-toggle {
+            display: none; width: 40px; height: 40px; align-items: center; justify-content: center; flex-shrink: 0;
+            background: #fff; border: 1px solid var(--pink-garis); border-radius: 10px; color: var(--maroon); cursor: pointer;
+        }
+        .sidebar-backdrop { display: none; }
+
+        @media screen and (max-width: 900px) {
+            body.menu-open { overflow: hidden; }
+
+            /* Header: baris 1 = menu, logo, lonceng, admin. Baris 2 = filter tanggal */
+            .topbar { position: sticky; height: auto; min-height: 60px; padding: 8px 14px; flex-wrap: wrap; gap: 8px 10px; }
+            .top-kanan { display: contents; }
+            .menu-toggle { display: flex; order: 0; }
+            .brand { order: 1; margin-right: auto; }
+            .bell { order: 2; }
+            .admin-menu { order: 3; }
+            .date-pill { order: 4; flex: 1 1 100%; flex-wrap: wrap; justify-content: center; }
+            .date-pill input[type=date] { flex: 1 1 110px; min-width: 0; width: auto; font-size: 14px; }
+            .date-pill button { flex: 1 1 100%; padding: 8px; }
+            .brand-teks .slogan { display: none; }
+            .brand-teks .nama { font-size: 24px; }
+            .brand svg.logo { width: 34px; height: 34px; }
+
+            /* Sidebar jadi menu geser (drawer) */
+            .sidebar { display: flex !important; top: 0; width: 260px; max-width: 84vw; padding-top: 8px; z-index: 50; transform: translateX(-105%); transition: transform .25s ease; }
+            body.menu-open .sidebar { transform: none; box-shadow: 6px 0 24px rgba(0, 0, 0, .25); }
+            .sidebar-backdrop { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(43, 12, 20, .45); opacity: 0; pointer-events: none; transition: opacity .25s; }
+            body.menu-open .sidebar-backdrop { opacity: 1; pointer-events: auto; }
+
+            /* Konten */
+            .main-content { margin: 0 !important; min-height: 0; padding: 16px 14px 24px; }
+            .container { padding: 0; }
+            .welcome-section h1, .page-title-area h1 { font-size: 22px; }
+            .welcome-section p { margin-bottom: 18px; }
+            .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+            .card-value, .card-stat .value { font-size: 24px; }
+            .chart-card, .chart-box, .table-box { padding: 14px; }
+            .chart-title h3 { font-size: 17px; }
+            .chart-wrap { height: 260px; }
+            .btn-group { width: 100%; }
+            .btn-action { flex: 1; justify-content: center; }
+            .search-box { min-width: 0; width: 100%; }
+            table { min-width: 640px; }
+            .table-foot { justify-content: center; }
+            footer { flex-direction: column; gap: 4px; text-align: center; padding: 12px 14px 20px; }
+        }
+
+        @media screen and (max-width: 600px) {
+            .admin-menu summary span:not(.avatar) { display: none; }
+        }
+
+        @media screen and (max-width: 520px) {
+            .cards-grid { grid-template-columns: 1fr; }
+            .donut-area { flex-direction: column; align-items: stretch; }
+            .donut-area .donut { margin: 0 auto; }
+            .chart-sub { margin-left: 0; }
+        }
     </style>
 </head>
 <body>
@@ -249,7 +223,10 @@ $kartu = [
 
     <!-- TOP NAVBAR -->
     <header class="topbar">
-        <a href="dashboard.php" class="brand">
+        <button type="button" class="menu-toggle" id="menuToggle" aria-label="Buka menu" aria-expanded="false">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        </button>
+        <a href="{{ route('admin.dashboard') }}" class="brand">
             <svg class="logo" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M24 8c-5 0-9 3.5-9 8 0 3.5 2.3 6 5 7.2M24 8c5 0 9 3.5 9 8 0 3.5-2.3 6-5 7.2"/>
                 <path d="M24 8c-2.2 2.5-2.2 6 0 9 2.2-3 2.2-6.5 0-9z"/>
@@ -266,34 +243,38 @@ $kartu = [
 
         <div class="top-kanan">
             <!-- Form Filter Tanggal -->
-            <form method="GET" id="dateFilterForm" class="date-pill">
-                <?= ikon('calendar', 18); ?>
-                <input type="date" name="tanggal" value="<?= htmlspecialchars($selectedDate); ?>" onchange="document.getElementById('dateFilterForm').submit();">
+            <form method="GET" action="{{ route('admin.dashboard') }}" id="dateFilterForm" class="date-pill">
+                {!! $ikon('calendar', 18) !!}
+                <input type="date" name="tanggal" value="{{ $selectedDate }}" onchange="document.getElementById('dateFilterForm').submit();">
             </form>
 
-            <span class="bell"><?= ikon('bell', 22); ?></span>
+            <span class="bell">{!! $ikon('bell', 22) !!}</span>
 
             <details class="admin-menu">
                 <summary>
-                    <span class="avatar"><?= ikon('user', 20); ?></span>
-                    <span class="nm"><?= $namaAdmin; ?></span>
-                    <?= ikon('chevron', 16); ?>
+                    <span class="avatar">{!! $ikon('user', 20) !!}</span>
+                    <span class="nm">{{ $namaAdmin }}</span>
+                    {!! $ikon('chevron', 16) !!}
                 </summary>
                 <div class="dropdown">
-                    <a href="../auth/logout.php" onclick="return confirm('Apakah Anda yakin ingin keluar?');"><?= ikon('logout', 17); ?> Logout</a>
+                    <form method="POST" action="{{ route('logout') }}" onsubmit="return confirm('Apakah Anda yakin ingin keluar?');">
+                        @csrf
+                        <button type="submit">{!! $ikon('logout', 17) !!} Logout</button>
+                    </form>
                 </div>
             </details>
         </div>
     </header>
 
     <!-- SIDEBAR -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
     <aside class="sidebar">
         <ul class="sidebar-menu">
-            <?php foreach ($menu as [$href, $ic, $label, $aktif]): ?>
-                <li<?= $aktif ? ' class="active"' : ''; ?>>
-                    <a href="<?= htmlspecialchars($href); ?>"><?= ikon($ic, 20); ?><span><?= htmlspecialchars($label); ?></span></a>
+            @foreach ($menu as $item)
+                <li @class(['active' => $item['aktif'] ?? false])>
+                    <a href="{{ $item['href'] }}">{!! $ikon($item['ikon'], 20) !!}<span>{{ $item['label'] }}</span></a>
                 </li>
-            <?php endforeach; ?>
+            @endforeach
         </ul>
 
         <!-- Hiasan bunga di dasar sidebar -->
@@ -321,41 +302,43 @@ $kartu = [
         <div class="container">
             <div class="welcome-section">
                 <h1>Dashboard Admin</h1>
-                <p>Selamat datang, <?= $namaAdmin; ?>! Berikut ringkasan data penjualan Royal Florist.</p>
+                <p>Selamat datang, {{ $namaAdmin }}! Berikut ringkasan data penjualan Royal Florist.</p>
             </div>
 
             <!-- CARDS STATISTIK -->
             <section class="cards-grid">
-                <?php foreach ($kartu as [$judul, $ic, $nilai, $persen]): ?>
+                @foreach ($kartu as $k)
                 <div class="card">
                     <svg class="watermark"><use href="#bunga"/></svg>
                     <div class="card-head">
-                        <div class="card-icon"><?= ikon($ic, 20); ?></div>
-                        <div class="card-title"><?= htmlspecialchars($judul); ?></div>
+                        <div class="card-icon">{!! $ikon($k['ikon'], 20) !!}</div>
+                        <div class="card-title">{{ $k['judul'] }}</div>
                     </div>
-                    <div class="card-value"><?= htmlspecialchars($nilai); ?></div>
+                    <div class="card-value">{{ $k['nilai'] }}</div>
                     <div class="card-trend">
-                        <span class="naik"><?= ikon('trend', 14); ?><?= htmlspecialchars($persen); ?></span>
-                        <span>dari minggu sebelumnya</span>
+                        @if ($k['info']['teks'] !== '')
+                            <span class="{{ $k['info']['kelas'] }}">{!! $ikon('trend', 14) !!}{{ $k['info']['teks'] }}</span>
+                        @endif
+                        <span>{{ $k['info']['ket'] }}</span>
                     </div>
                 </div>
-                <?php endforeach; ?>
+                @endforeach
             </section>
 
             <!-- GRAFIK PENJUALAN -->
             <section class="chart-card">
                 <div class="chart-header">
                     <div class="chart-title">
-                        <?= ikon('batang', 30); ?>
+                        {!! $ikon('batang', 30) !!}
                         <div>
                             <h3>Grafik Penjualan</h3>
                             <p>Data penjualan selama 7 hari terakhir</p>
                         </div>
                     </div>
                     <div class="date-chip">
-                        <?= ikon('calendar', 17); ?>
-                        <?= date('d M Y', strtotime($selectedDate)); ?>
-                        <?= ikon('chevron', 15); ?>
+                        {!! $ikon('calendar', 17) !!}
+                        {{ \Carbon\Carbon::parse($selectedDate)->format('d M Y') }}
+                        {!! $ikon('chevron', 15) !!}
                     </div>
                 </div>
                 <div class="chart-wrap">
@@ -379,13 +362,13 @@ $kartu = [
         new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: <?= json_encode($labelsGrafik); ?>,
+                labels: @json($labelsGrafik),
                 datasets: [{
                     label: 'Pendapatan',
-                    data: <?= json_encode($dataGrafik); ?>,
+                    data: @json($dataGrafik),
                     backgroundColor: '#A84860',
                     borderRadius: 3,
-                    barThickness: 50
+                    maxBarThickness: 50
                 }]
             },
             options: {
@@ -403,6 +386,12 @@ $kartu = [
                         color: '#7B1830',
                         font: { weight: '600', size: 10.5 },
                         formatter: function(value) {
+                            if (window.innerWidth < 700) {
+                                if (value === 0) return '';
+                                return value >= 1000000
+                                    ? (value / 1000000).toFixed(1).replace('.0', '').replace('.', ',') + ' jt'
+                                    : Math.round(value / 1000) + ' rb';
+                            }
                             return 'Rp ' + value.toLocaleString('id-ID');
                         }
                     }
@@ -423,6 +412,9 @@ $kartu = [
                             color: '#555',
                             font: { size: 10.5 },
                             callback: function(value) {
+                                if (window.innerWidth < 700) {
+                                    return value === 0 ? '0' : (value / 1000000).toString().replace('.', ',') + ' jt';
+                                }
                                 return value.toLocaleString('id-ID');
                             }
                         }
@@ -430,6 +422,22 @@ $kartu = [
                 }
             }
         });
+    </script>
+    <script>
+        // Buka/tutup menu samping di layar kecil
+        (function () {
+            var body = document.body;
+            var tombol = document.getElementById('menuToggle');
+            var latar = document.getElementById('sidebarBackdrop');
+            function atur(buka) {
+                body.classList.toggle('menu-open', buka);
+                tombol.setAttribute('aria-expanded', buka ? 'true' : 'false');
+            }
+            tombol.addEventListener('click', function () { atur(!body.classList.contains('menu-open')); });
+            latar.addEventListener('click', function () { atur(false); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') atur(false); });
+            window.addEventListener('resize', function () { if (window.innerWidth > 900) atur(false); });
+        })();
     </script>
 </body>
 </html>

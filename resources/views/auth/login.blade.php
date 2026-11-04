@@ -1,58 +1,3 @@
-<?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-require_once 'koneksi.php';
-
-// Jika sudah login, langsung arahkan berdasarkan rolenya
-if (isset($_SESSION['user_id'])) {
-    $current_role = strtolower(trim($_SESSION['role'] ?? ''));
-    if ($current_role === 'admin' || $current_role === 'karyawan') {
-        header('Location: ../admin/dashboard.php');
-        exit;
-    } else {
-        header('Location: ../pelanggan/pelanggan_dashboard.php');
-        exit;
-    }
-}
-
-$error = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email    = trim($_POST['email'] ?? '');
-    $password = trim($_POST['password'] ?? '');
-
-    if (!empty($email) && !empty($password)) {
-        try {
-            $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
-            $stmt->execute([$email]);
-            $user = $stmt->fetch();
-
-            if ($user && password_verify($password, $user['password'])) {
-                $_SESSION['user_id'] = $user['id_user'];
-                $_SESSION['nama']    = $user['nama'];
-                $_SESSION['role']    = $user['role'];
-
-                $role = strtolower(trim($user['role']));
-                if ($role === 'admin' || $role === 'karyawan') {
-                    $_SESSION['admin_logged_in'] = true;
-                    header('Location: ../admin/dashboard.php');
-                    exit;
-                } else {
-                    header('Location: ../pelanggan/pelanggan_dashboard.php');
-                    exit;
-                }
-            } else {
-                $error = 'Email atau password salah!';
-            }
-        } catch (PDOException $e) {
-            $error = 'Terjadi kesalahan pada server.';
-        }
-    } else {
-        $error = 'Email dan password wajib diisi.';
-    }
-}
-?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -114,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .btn:hover { background: #721a39; }
         .error { background: #fde8e8; color: #b00020; padding: 12px; border-radius: 12px; margin-bottom: 18px; text-align: center; }
+        .sukses { background: #e8f6ee; color: #1e7a46; padding: 12px; border-radius: 12px; margin-bottom: 18px; text-align: center; }
         .foot { text-align: center; margin-top: 24px; color: #444; }
         .foot a { color: #8b2045; font-weight: 700; text-decoration: none; }
 
@@ -123,6 +69,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             .sambutan p { font-size: 18px; }
             .hati { padding-left: 0; }
             .card { padding: 36px 24px; }
+        }
+
+        /* ---------- Responsif ---------- */
+        @media (max-width: 1000px) { body { overflow-x: hidden; } }
+        @media (max-width: 600px) {
+            body { padding: 16px; justify-content: flex-start; gap: 8px; }
+            .bunga { opacity: .45; }
+            .b2, .b3, .b5, .b8 { display: none; }
+            .sambutan { padding: 8px 0; text-align: center; }
+            .sambutan h1 { font-size: 28px; margin-bottom: 12px; }
+            .sambutan p { font-size: 16px; margin-bottom: 8px; }
+            .hati { display: none; }
+            .card { padding: 28px 18px; border-radius: 24px; }
+            .card h2 { font-size: 28px; }
+            .card .sub { margin-bottom: 20px; }
+            .field input { padding: 15px 16px; font-size: 16px; }
+            .btn { padding: 15px; font-size: 16px; }
         }
     </style>
 </head>
@@ -144,21 +107,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <circle cx="100" cy="100" r="13" fill="#f7a8c0"/>
         </symbol>
         <symbol id="hati" viewBox="0 0 24 24">
-            <path d="M12 21s-8-5.4-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.600-8 11-8 11z"/>
+            <path d="M12 21s-8-5.4-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.6-8 11-8 11z"/>
         </symbol>
     </defs>
 </svg>
 
-<svg class="bunga b1"><use href="#bunga"/></svg>
-<svg class="bunga b2"><use href="#bunga"/></svg>
-<svg class="bunga b3"><use href="#bunga"/></svg>
-<svg class="bunga b4"><use href="#bunga"/></svg>
-<svg class="bunga b5"><use href="#bunga"/></svg>
-<svg class="bunga b6"><use href="#bunga"/></svg>
-<svg class="bunga b7"><use href="#bunga"/></svg>
-<svg class="bunga b8"><use href="#bunga"/></svg>
-<svg class="bunga b9"><use href="#bunga"/></svg>
-<svg class="bunga b10"><use href="#bunga"/></svg>
+@foreach (range(1, 10) as $n)
+    <svg class="bunga b{{ $n }}"><use href="#bunga"/></svg>
+@endforeach
 
 <div class="sambutan">
     <h1>Selamat Datang<br>di Royal Florist</h1>
@@ -173,14 +129,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <h2>Login</h2>
     <p class="sub">Masuk ke akun Royal Florist Anda</p>
 
-    <?php if ($error !== ''): ?>
-        <div class="error"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
+    @if (session('success'))
+        <div class="sukses">{{ session('success') }}</div>
+    @endif
 
-    <form method="POST" action="">
+    @if (session('error'))
+        <div class="error">{{ session('error') }}</div>
+    @endif
+
+    <form method="POST" action="{{ route('login.proses') }}">
+        @csrf
         <div class="field">
-            <input type="email" name="email" placeholder="Email"
-                   value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" required>
+            <input type="email" name="email" placeholder="Email" value="{{ old('email') }}" required>
         </div>
         <div class="field">
             <input type="password" name="password" id="password" placeholder="Password" required>
@@ -194,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button type="submit" class="btn">Masuk</button>
     </form>
 
-    <div class="foot">Belum punya akun? <a href="register.php">Register di sini</a></div>
+    <div class="foot">Belum punya akun? <a href="{{ route('register') }}">Register di sini</a></div>
 </div>
 
 <script>

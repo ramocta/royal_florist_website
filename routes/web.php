@@ -1,49 +1,121 @@
+
 <?php
 
+use App\Http\Controllers\admin\DashboardController;
 use App\Http\Controllers\admin\KaryawanController;
+use App\Http\Controllers\admin\LaporanPenjualanController;
+use App\Http\Controllers\admin\PelangganController;
 use App\Http\Controllers\admin\PesananController;
 use App\Http\Controllers\admin\ProdukController;
 use App\Http\Controllers\admin\ProfilController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\pelanggan\KatalogController;
 use App\Http\Controllers\pelanggan\CheckoutController;
+use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| Halaman umum
+|--------------------------------------------------------------------------
+*/
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-// Middleware auth + role:admin dipasang nanti, setelah login selesai.
-Route::prefix('admin')->name('admin.')->group(function () {
+/*
+|--------------------------------------------------------------------------
+| Login, Registrasi, Logout
+|--------------------------------------------------------------------------
+*/
 
-    // Manajemen Staff (sisi admin)
-    Route::get('karyawan/export', [KaryawanController::class, 'export'])->name('karyawan.export');
-    Route::patch('karyawan/{karyawan}/status', [KaryawanController::class, 'toggleStatus'])->name('karyawan.status');
-    Route::resource('karyawan', KaryawanController::class)->except(['show']);
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login'])->name('login.proses');
+Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+Route::post('/register', [AuthController::class, 'register'])->name('register.proses');
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
-    // Katalog Produk
-    // Urutan penting: route statis (data, export, create) harus di atas {produk}
-    Route::get('produk', [ProdukController::class, 'index'])->name('produk.index');
-    Route::get('produk/data', [ProdukController::class, 'data'])->name('produk.data');
-    Route::get('produk/export', [ProdukController::class, 'export'])->name('produk.export');
-    Route::get('produk/create', [ProdukController::class, 'create'])->name('produk.create');
-    Route::post('produk', [ProdukController::class, 'store'])->name('produk.store');
-    Route::get('produk/{produk}/edit', [ProdukController::class, 'edit'])->name('produk.edit');
-    Route::put('produk/{produk}', [ProdukController::class, 'update'])->name('produk.update');
-    Route::delete('produk/{produk}', [ProdukController::class, 'destroy'])->name('produk.destroy');
+/*
+|--------------------------------------------------------------------------
+| Area Admin & Karyawan -> /admin/*
+|--------------------------------------------------------------------------
+*/
 
-    // Pesanan -> http://localhost:8000/admin/pesanan
-    // Route statis (create) harus di atas {pesanan} kalau nanti ada halaman detail
-    Route::get('pesanan', [PesananController::class, 'index'])->name('pesanan.index');
-    Route::get('pesanan/create', [PesananController::class, 'create'])->name('pesanan.create');
-    Route::post('pesanan', [PesananController::class, 'store'])->name('pesanan.store');
+Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
 
-    // Admin Profil
-    Route::get('profil', [ProfilController::class, 'index'])->name('profil');
-    Route::put('profil', [ProfilController::class, 'update'])->name('profil.update');
-    Route::put('profil/password', [ProfilController::class, 'updatePassword'])->name('profil.password');
+        // Dashboard
+        Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-});
+        // Laporan Penjualan
+        Route::get('laporan-penjualan', [LaporanPenjualanController::class, 'index'])->name('laporan.index');
 
-// Pelanggan Checkout
+        // Manajemen Staff
+        Route::get('karyawan/export', [KaryawanController::class, 'export'])->name('karyawan.export');
+        Route::patch('karyawan/{karyawan}/status', [KaryawanController::class, 'toggleStatus'])->name('karyawan.status');
+        Route::resource('karyawan', KaryawanController::class)->except(['show']);
+
+        // Katalog Produk (route statis harus di atas {produk})
+        Route::get('produk', [ProdukController::class, 'index'])->name('produk.index');
+        Route::get('produk/data', [ProdukController::class, 'data'])->name('produk.data');
+        Route::get('produk/export', [ProdukController::class, 'export'])->name('produk.export');
+        Route::get('produk/create', [ProdukController::class, 'create'])->name('produk.create');
+        Route::post('produk', [ProdukController::class, 'store'])->name('produk.store');
+        Route::get('produk/{produk}/edit', [ProdukController::class, 'edit'])->name('produk.edit');
+        Route::put('produk/{produk}', [ProdukController::class, 'update'])->name('produk.update');
+        Route::delete('produk/{produk}', [ProdukController::class, 'destroy'])->name('produk.destroy');
+
+        // Manajemen Pelanggan
+        Route::get('pelanggan', [PelangganController::class, 'index'])->name('pelanggan.index');
+        Route::get('pelanggan/export', [PelangganController::class, 'export'])->name('pelanggan.export');
+        Route::get('pelanggan/create', [PelangganController::class, 'create'])->name('pelanggan.create');
+        Route::post('pelanggan', [PelangganController::class, 'store'])->name('pelanggan.store');
+        Route::get('pelanggan/{pelanggan}', [PelangganController::class, 'show'])->name('pelanggan.show');
+        Route::get('pelanggan/{pelanggan}/edit', [PelangganController::class, 'edit'])->name('pelanggan.edit');
+        Route::put('pelanggan/{pelanggan}', [PelangganController::class, 'update'])->name('pelanggan.update');
+        Route::delete('pelanggan/{pelanggan}', [PelangganController::class, 'destroy'])->name('pelanggan.destroy');
+
+        // Pesanan
+        Route::get('pesanan', [PesananController::class, 'index'])->name('pesanan.index');
+        Route::get('pesanan/create', [PesananController::class, 'create'])->name('pesanan.create');
+        Route::post('pesanan', [PesananController::class, 'store'])->name('pesanan.store');
+
+        // Admin Profil
+        Route::get('profil', [ProfilController::class, 'index'])->name('profil');
+        Route::put('profil', [ProfilController::class, 'update'])->name('profil.update');
+        Route::put('profil/password', [ProfilController::class, 'updatePassword'])->name('profil.password');
+
+    });
+
+/*
+|--------------------------------------------------------------------------
+| Area Pelanggan -> /pelanggan/*
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])
+    ->prefix('pelanggan')
+    ->name('pelanggan.')
+    ->group(function () {
+
+        // Katalog
+        Route::get('katalog', [KatalogController::class, 'index'])->name('katalog');
+        Route::get('katalog/data', [KatalogController::class, 'data'])->name('katalog.data');
+
+        // Detail produk (aktifkan setelah method show() dan view-nya dibuat)
+        // Route::get('produk/{produk}', [KatalogController::class, 'show'])->name('produk.show');
+
+    });
+
+/*
+|--------------------------------------------------------------------------
+| Pelanggan Checkout
+|--------------------------------------------------------------------------
+*/
+
 Route::get('/checkout', [CheckoutController::class, 'index'])
     ->name('checkout');
 
