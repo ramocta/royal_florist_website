@@ -6,9 +6,8 @@
 @php
     $rp = fn ($n) => 'Rp ' . number_format($n, 0, ',', '.');
     $badge = [
-        'VIP'     => 'bg-amber-100 text-amber-800',
-        'Reguler' => 'bg-green-100 text-green-800',
-        'Baru'    => 'bg-blue-100 text-blue-800',
+        'Lama' => 'bg-amber-100 text-amber-800',
+        'Baru' => 'bg-blue-100 text-blue-800',
     ];
     $rata = $pelanggan->total_pesanan > 0 ? $pelanggan->total_belanja / $pelanggan->total_pesanan : 0;
 @endphp
@@ -16,16 +15,12 @@
 <div style="max-width: 900px;">
     <a href="{{ route('admin.pelanggan.index') }}" class="text-sm text-maroon hover:underline">&larr; Kembali ke daftar pelanggan</a>
 
-    {{-- KARTU PROFIL --}}
     <section class="mt-3 rounded-2xl border border-pinkline bg-white" style="overflow: hidden;">
-        {{-- pita atas --}}
         <div class="bg-pinksoft" style="height: 80px;"></div>
 
         <div style="padding: 0 28px 28px;">
-            {{-- avatar + nama + tombol --}}
             <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; margin-top: -40px;">
                 <div style="display: flex; align-items: flex-end; gap: 16px;">
-                    {{-- ukuran dikunci lewat style supaya SELALU bulat --}}
                     <div class="bg-maroon text-white"
                          style="width: 80px; height: 80px; flex: none; border-radius: 9999px; border: 4px solid #fff;
                                 display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 600;">
@@ -45,7 +40,6 @@
                 </a>
             </div>
 
-            {{-- info: dibuat berdekatan, bukan 2 kolom lebar --}}
             <div class="border-t border-pinkline text-sm" style="display: flex; flex-wrap: wrap; gap: 20px 64px; margin-top: 24px; padding-top: 20px;">
                 <div>
                     <p class="text-xs text-neutral-500">Kontak</p>
@@ -63,7 +57,6 @@
         </div>
     </section>
 
-    {{-- RINGKASAN TRANSAKSI --}}
     <section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 20px;">
         <div class="rounded-2xl border border-l-4 border-pinkline border-l-maroon bg-white p-5">
             <p class="text-xs text-neutral-600">Total Pesanan</p>

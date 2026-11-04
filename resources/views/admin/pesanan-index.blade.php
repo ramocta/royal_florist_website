@@ -24,7 +24,7 @@
 @endphp
 
 {{-- -m-6 membatalkan padding <main> di layout supaya latar pink memenuhi area isi --}}
-<div class="-m-6 min-h-full bg-pinksoft p-6">
+<div class="-m-6 min-h-full bg-pinksoft p-4 sm:p-6">
 
     {{-- JUDUL + TOMBOL --}}
     <div class="flex flex-wrap items-start justify-between gap-4">
@@ -35,7 +35,7 @@
             </p>
         </div>
         <div class="flex gap-3">
-            <a href="{{ Route::has('admin.pesanan.export') ? route('admin.pesanan.export') : '#' }}"
+            <a href="{{ Route::has('admin.pesanan.export') ? route('admin.pesanan.export', request()->only('q', 'status')) : '#' }}"
                class="flex items-center gap-2 rounded-lg border border-pinkline bg-white px-4 py-2.5 text-xs font-semibold text-maroon hover:bg-pinkcard">
                 <x-icon name="export" size="h-4 w-4" /> Export Data
             </a>
@@ -47,18 +47,18 @@
     </div>
 
     {{-- KARTU STATISTIK --}}
-    <div class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="mt-5 grid grid-cols-2 gap-3 sm:mt-6 sm:gap-5 xl:grid-cols-4">
         @foreach ($kartu as [$judul, $angka, $ket, $warna])
-            <div class="rounded-xl bg-white p-5">
-                <p class="text-xs font-semibold text-maroon">{{ $judul }}</p>
-                <p class="mt-1 text-3xl font-bold text-maroon">{{ $angka }}</p>
-                <p class="mt-3 text-[11px] font-medium {{ $warna }}">{{ $ket }}</p>
+            <div class="rounded-xl bg-white p-3.5 sm:p-5">
+                <p class="text-[11px] font-semibold text-maroon sm:text-xs">{{ $judul }}</p>
+                <p class="mt-0.5 text-2xl font-bold text-maroon sm:mt-1 sm:text-3xl">{{ $angka }}</p>
+                <p class="mt-1.5 text-[10px] font-medium sm:mt-3 sm:text-[11px] {{ $warna }}">{{ $ket }}</p>
             </div>
         @endforeach
     </div>
 
     {{-- TABEL PESANAN --}}
-    <section class="mt-6 rounded-xl bg-white p-6">
+    <section class="mt-5 rounded-xl bg-white p-4 sm:mt-6 sm:p-6">
 
         {{-- Filter: method GET supaya terbawa di URL dan saat pindah halaman --}}
         <form method="GET" action="{{ route('admin.pesanan.index') }}"

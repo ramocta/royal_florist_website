@@ -74,6 +74,7 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::get('pelanggan/{pelanggan}', [PelangganController::class, 'show'])->name('pelanggan.show');
         Route::get('pelanggan/{pelanggan}/edit', [PelangganController::class, 'edit'])->name('pelanggan.edit');
         Route::put('pelanggan/{pelanggan}', [PelangganController::class, 'update'])->name('pelanggan.update');
+        Route::delete('pelanggan/{pelanggan}', [PelangganController::class, 'destroy'])->name('pelanggan.destroy');
 
         // Pesanan
         Route::get('pesanan', [PesananController::class, 'index'])->name('pesanan.index');
