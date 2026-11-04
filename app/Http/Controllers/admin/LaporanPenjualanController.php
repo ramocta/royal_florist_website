@@ -3,13 +3,62 @@
 namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class LaporanPenjualanController extends Controller
 {
+    /** Jumlah baris detail per halaman di layar. */
+    private const PER_HALAMAN = 10;
+
+    /* ------------------------------------------------------------------ */
+    /* Halaman laporan (dengan paginasi)                                  */
+    /* ------------------------------------------------------------------ */
+
     public function index(Request $request)
+    {
+        $data = $this->dataLaporan($request);
+
+        $listDetail = $data['queryDetail']
+            ->paginate(self::PER_HALAMAN)
+            ->withQueryString(); // supaya filter tanggal & pencarian ikut terbawa ke halaman lain
+
+        unset($data['queryDetail']);
+
+        return view('admin.laporan-penjualan', $data + ['listDetail' => $listDetail]);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Export PDF (file laporan lengkap, semua data pada periode terpilih) */
+    /* ------------------------------------------------------------------ */
+
+    public function exportPdf(Request $request)
+    {
+        $data = $this->dataLaporan($request);
+
+        $listDetail = $data['queryDetail']->get(); // tanpa paginasi: semua baris
+        unset($data['queryDetail']);
+
+        $data += [
+            'listDetail'  => $listDetail,
+            'dicetakOleh' => auth()->user()->nama ?? auth()->user()->name ?? 'Admin',
+            'dicetakPada' => now()->format('d/m/Y H:i'),
+        ];
+
+        $namaFile = "laporan-penjualan_{$data['startDate']}_sd_{$data['endDate']}.pdf";
+
+        return Pdf::loadView('admin.laporan-pdf', $data)
+            ->setPaper('a4', 'portrait')
+            ->download($namaFile);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Perhitungan data laporan (dipakai halaman & PDF)                    */
+    /* ------------------------------------------------------------------ */
+
+    private function dataLaporan(Request $request): array
     {
         /* ------------------------- Filter tanggal ------------------------- */
 
@@ -55,14 +104,18 @@ class LaporanPenjualanController extends Controller
             ->groupBy('tgl')
             ->pluck('total', 'tgl');
 
-        $namaHari     = ['Ming', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-        $labelsGrafik = [];
-        $dataGrafik   = [];
+        $namaHari      = ['Ming', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+        $labelsGrafik  = [];
+        $dataGrafik    = [];
+        $rincianHarian = [];
 
         for ($i = $jumlahHari - 1; $i >= 0; $i--) {
-            $d = $end->copy()->subDays($i);
-            $labelsGrafik[] = [$namaHari[$d->dayOfWeek], $d->format('d/m')];
-            $dataGrafik[]   = (float) ($perHari[$d->toDateString()] ?? 0);
+            $d     = $end->copy()->subDays($i);
+            $total = (float) ($perHari[$d->toDateString()] ?? 0);
+
+            $labelsGrafik[]  = [$namaHari[$d->dayOfWeek], $d->format('d/m')];
+            $dataGrafik[]    = $total;
+            $rincianHarian[] = ['tanggal' => $d->format('d/m/Y'), 'hari' => $namaHari[$d->dayOfWeek], 'total' => $total];
         }
 
         /* ------------------------- Kartu ringkasan ------------------------ */
@@ -101,19 +154,20 @@ class LaporanPenjualanController extends Controller
 
         /* ---------------------------- Tabel detail ------------------------- */
 
-        $listDetail = $itemTerjual($startDate, $endDate)
+        // Belum dieksekusi: index() memakai paginate(), exportPdf() memakai get().
+        $queryDetail = $itemTerjual($startDate, $endDate)
             ->when($search !== '', fn ($q) => $q->where('p.nama_produk', 'like', "%{$search}%"))
             ->selectRaw('o.dibuat_pada as tanggal, p.nama_produk, c.category_name as kategori, oi.jumlah, oi.harga_satuan, (oi.jumlah * oi.harga_satuan) as total')
             ->orderByDesc('o.dibuat_pada')
-            ->limit(5)
-            ->get();
+            ->orderByDesc('oi.id_order')
+            ->orderBy('p.nama_produk');
 
-        return view('admin.laporan-penjualan', compact(
+        return compact(
             'startDate', 'endDate', 'search',
-            'labelsGrafik', 'dataGrafik', 'kartu',
+            'labelsGrafik', 'dataGrafik', 'rincianHarian', 'kartu',
             'kategoriLabels', 'kategoriData', 'totalKategori',
-            'listDetail', 'totalTransaksi'
-        ));
+            'totalTransaksi', 'totalPendapatan', 'queryDetail'
+        );
     }
 
     /** Kembalikan tanggal (Y-m-d) kalau valid, kalau tidak null. */

@@ -32,6 +32,7 @@ Route::post('/login', [AuthController::class, 'login'])->name('login.proses');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'register'])->name('register.proses');
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+Route::get('laporan-penjualan/pdf', [LaporanPenjualanController::class, 'exportPdf'])->name('laporan.pdf');
 
 /*
 |--------------------------------------------------------------------------

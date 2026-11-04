@@ -115,6 +115,7 @@
             border: 1px solid var(--pink-garis); padding: 9px 18px; border-radius: 9px; font-size: 12px; font-weight: 500; cursor: pointer;
         }
         .btn-action:hover { background: #f6d3dc; }
+        a.btn-action { text-decoration: none; }
 
         /* Kartu ringkasan */
         .cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
@@ -165,7 +166,12 @@
         .table-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; color: var(--abu); flex-wrap: wrap; gap: 10px; }
         .paging { display: flex; gap: 6px; }
         .paging span { min-width: 26px; height: 26px; padding: 0 6px; border: 1px solid #e3e3e3; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11.5px; color: #555; }
+        .paging { flex-wrap: wrap; }
+        .paging a { min-width: 26px; height: 26px; padding: 0 6px; border: 1px solid #e3e3e3; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11.5px; color: #555; text-decoration: none; }
+        .paging a:hover { background: var(--pink-tabel); border-color: var(--pink-garis); color: var(--maroon); }
         .paging span.aktif { background: var(--maroon); border-color: var(--maroon); color: #fff; }
+        .paging span.nonaktif { opacity: .4; }
+        .paging span.titik { border: none; }
 
         @media (max-width: 1100px) {
             .cards-grid { grid-template-columns: repeat(2, 1fr); }
@@ -348,7 +354,7 @@
                 <p>Berikut adalah ringkasan dan detail penjualan Royal Florist periode {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} s/d {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}.</p>
             </div>
             <div class="btn-group">
-                <button type="button" onclick="window.print()" class="btn-action">{!! $ikon('download', 17) !!} Export PDF</button>
+                <a href="{{ route('admin.laporan.pdf', array_filter(['start_date' => $startDate, 'end_date' => $endDate, 'search' => $search])) }}" class="btn-action" title="Unduh laporan lengkap periode ini sebagai file PDF">{!! $ikon('download', 17) !!} Export PDF</a>
                 <button type="button" onclick="window.print()" class="btn-action">{!! $ikon('printer', 17) !!} Cetak</button>
             </div>
         </div>
@@ -425,7 +431,7 @@
                 <tbody>
                     @forelse ($listDetail as $row)
                         <tr>
-                            <td>{{ $loop->iteration }}</td>
+                            <td>{{ $listDetail->firstItem() + $loop->index }}</td>
                             <td>{{ $row->tanggal ? \Carbon\Carbon::parse($row->tanggal)->format('d/m/Y') : '-' }}</td>
                             <td>{{ $row->nama_produk }}</td>
                             <td>{{ $row->kategori }}</td>
@@ -439,10 +445,14 @@
                 </tbody>
             </table>
             <div class="table-foot">
-                <div>Menampilkan {{ count($listDetail) }} dari {{ $search === '' ? $totalTransaksi : count($listDetail) }} data</div>
-                <div class="paging">
-                    <span>&lsaquo;</span><span class="aktif">1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>&rsaquo;</span>
+                <div>
+                    @if ($listDetail->total() > 0)
+                        Menampilkan {{ $listDetail->firstItem() }}&ndash;{{ $listDetail->lastItem() }} dari {{ $listDetail->total() }} data
+                    @else
+                        Tidak ada data
+                    @endif
                 </div>
+                @include('admin.partials.pagination', ['paginator' => $listDetail])
             </div>
         </section>
     </main>
