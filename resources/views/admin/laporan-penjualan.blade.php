@@ -5,7 +5,7 @@
     $menu = [
         ['href' => route('admin.dashboard'),       'ikon' => 'home',     'label' => 'Dashboard',          'aktif' => false],
         ['href' => route('admin.laporan.index'),   'ikon' => 'laporan',  'label' => 'Laporan Penjualan',  'aktif' => true],
-        ['href' => '#',                            'ikon' => 'user',     'label' => 'Pelanggan',          'aktif' => false],
+        ['href' => route('admin.pelanggan.index'),                            'ikon' => 'user',     'label' => 'Pelanggan',          'aktif' => false],
         ['href' => route('admin.pesanan.index'),   'ikon' => 'cart',     'label' => 'Pesanan',            'aktif' => false],
         ['href' => route('admin.produk.index'),    'ikon' => 'box',      'label' => 'Produk',             'aktif' => false],
         ['href' => '#',                            'ikon' => 'database', 'label' => 'Stok',               'aktif' => false],
@@ -27,6 +27,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.8/dist/jspdf.plugin.autotable.min.js"></script>
     <style>
         :root {
             --maroon: #7B1830;
@@ -115,6 +117,7 @@
             border: 1px solid var(--pink-garis); padding: 9px 18px; border-radius: 9px; font-size: 12px; font-weight: 500; cursor: pointer;
         }
         .btn-action:hover { background: #f6d3dc; }
+        button.btn-action:disabled { opacity: .6; cursor: wait; }
 
         /* Kartu ringkasan */
         .cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
@@ -165,7 +168,12 @@
         .table-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 11px; color: var(--abu); flex-wrap: wrap; gap: 10px; }
         .paging { display: flex; gap: 6px; }
         .paging span { min-width: 26px; height: 26px; padding: 0 6px; border: 1px solid #e3e3e3; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11.5px; color: #555; }
+        .paging { flex-wrap: wrap; }
+        .paging a { min-width: 26px; height: 26px; padding: 0 6px; border: 1px solid #e3e3e3; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11.5px; color: #555; text-decoration: none; }
+        .paging a:hover { background: var(--pink-tabel); border-color: var(--pink-garis); color: var(--maroon); }
         .paging span.aktif { background: var(--maroon); border-color: var(--maroon); color: #fff; }
+        .paging span.nonaktif { opacity: .4; }
+        .paging span.titik { border: none; }
 
         @media (max-width: 1100px) {
             .cards-grid { grid-template-columns: repeat(2, 1fr); }
@@ -348,7 +356,7 @@
                 <p>Berikut adalah ringkasan dan detail penjualan Royal Florist periode {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} s/d {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}.</p>
             </div>
             <div class="btn-group">
-                <button type="button" onclick="window.print()" class="btn-action">{!! $ikon('download', 17) !!} Export PDF</button>
+                <button type="button" id="btnExportPdf" class="btn-action" data-url="{{ route('admin.laporan.index', array_filter(['start_date' => $startDate, 'end_date' => $endDate, 'search' => $search, 'format' => 'json'])) }}" title="Unduh laporan lengkap periode ini sebagai file PDF">{!! $ikon('download', 17) !!} Export PDF</button>
                 <button type="button" onclick="window.print()" class="btn-action">{!! $ikon('printer', 17) !!} Cetak</button>
             </div>
         </div>
@@ -425,7 +433,7 @@
                 <tbody>
                     @forelse ($listDetail as $row)
                         <tr>
-                            <td>{{ $loop->iteration }}</td>
+                            <td>{{ $listDetail->firstItem() + $loop->index }}</td>
                             <td>{{ $row->tanggal ? \Carbon\Carbon::parse($row->tanggal)->format('d/m/Y') : '-' }}</td>
                             <td>{{ $row->nama_produk }}</td>
                             <td>{{ $row->kategori }}</td>
@@ -439,10 +447,14 @@
                 </tbody>
             </table>
             <div class="table-foot">
-                <div>Menampilkan {{ count($listDetail) }} dari {{ $search === '' ? $totalTransaksi : count($listDetail) }} data</div>
-                <div class="paging">
-                    <span>&lsaquo;</span><span class="aktif">1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>&rsaquo;</span>
+                <div>
+                    @if ($listDetail->total() > 0)
+                        Menampilkan {{ $listDetail->firstItem() }}&ndash;{{ $listDetail->lastItem() }} dari {{ $listDetail->total() }} data
+                    @else
+                        Tidak ada data
+                    @endif
                 </div>
+                @include('admin.partials.pagination', ['paginator' => $listDetail])
             </div>
         </section>
     </main>
@@ -560,6 +572,202 @@
             document.addEventListener('keydown', function (e) { if (e.key === 'Escape') atur(false); });
             window.addEventListener('resize', function () { if (window.innerWidth > 900) atur(false); });
         })();
+        /* ---------- Export PDF (dibuat di browser, tanpa paket Composer) ---------- */
+        function buatLaporanPdf(jsPDF, d) {
+            var doc = new jsPDF({ unit: 'pt', format: 'a4' });
+            var lebar = doc.internal.pageSize.getWidth();
+            var tinggi = doc.internal.pageSize.getHeight();
+            var m = 36;
+            var maroon = [123, 24, 48];
+            var pink = [251, 227, 233];
+
+            var rp = function (v) { return 'Rp ' + Math.round(Number(v) || 0).toLocaleString('id-ID'); };
+            var tgl = function (s) {
+                var p = String(s).slice(0, 10).split('-');
+                return p[2] + '/' + p[1] + '/' + p[0];
+            };
+            var kanan = function (t) { return { content: t, styles: { halign: 'right' } }; };
+            var dua = function (n) { return (n < 10 ? '0' : '') + n; };
+            var sekarang = new Date();
+            var dicetak = dua(sekarang.getDate()) + '/' + dua(sekarang.getMonth() + 1) + '/' + sekarang.getFullYear()
+                + ' ' + dua(sekarang.getHours()) + ':' + dua(sekarang.getMinutes());
+            var periode = tgl(d.startDate) + ' s/d ' + tgl(d.endDate);
+
+            /* Kop laporan */
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(20);
+            doc.setTextColor(maroon[0], maroon[1], maroon[2]);
+            doc.text('Royal Florist', m, 50);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(111, 111, 111);
+            doc.text('Fresh Flower - Special Moment', m, 64);
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(14);
+            doc.setTextColor(maroon[0], maroon[1], maroon[2]);
+            doc.text('Laporan Penjualan', lebar - m, 46, { align: 'right' });
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(43, 43, 43);
+            doc.text('Periode: ' + periode, lebar - m, 60, { align: 'right' });
+            doc.setTextColor(111, 111, 111);
+            doc.text('Dicetak ' + dicetak + ' oleh ' + d.namaAdmin, lebar - m, 72, { align: 'right' });
+
+            doc.setDrawColor(maroon[0], maroon[1], maroon[2]);
+            doc.setLineWidth(2);
+            doc.line(m, 82, lebar - m, 82);
+
+            var y = 104;
+
+            function judul(teks) {
+                if (y > tinggi - 140) { doc.addPage(); y = 50; }
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.setTextColor(maroon[0], maroon[1], maroon[2]);
+                doc.text(teks, m, y);
+                doc.setDrawColor(243, 204, 214);
+                doc.setLineWidth(1);
+                doc.line(m, y + 5, lebar - m, y + 5);
+                y += 14;
+            }
+
+            function tabel(opsi) {
+                doc.autoTable(Object.assign({
+                    startY: y,
+                    margin: { left: m, right: m, bottom: 46 },
+                    theme: 'striped',
+                    styles: { font: 'helvetica', fontSize: 9, cellPadding: 5, textColor: [43, 43, 43] },
+                    headStyles: { fillColor: pink, textColor: maroon, fontStyle: 'bold' },
+                    footStyles: { fillColor: pink, textColor: maroon, fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: [252, 246, 248] },
+                    showFoot: 'lastPage'
+                }, opsi));
+                y = doc.lastAutoTable.finalY + 24;
+            }
+
+            /* 1. Ringkasan */
+            judul('Ringkasan');
+            tabel({
+                head: [['Keterangan', kanan('Nilai'), 'Perbandingan']],
+                body: d.kartu.map(function (k) {
+                    var tren = k.tren === null || k.tren === undefined
+                        ? 'Belum ada pembanding'
+                        : (k.tren >= 0 ? '+' : '') + k.tren + '% dari periode sebelumnya';
+                    return [k.judul, k.nilai, tren];
+                }),
+                columnStyles: { 1: { halign: 'right' } }
+            });
+
+            /* 2. Penjualan per hari */
+            judul('Penjualan per Hari');
+            tabel({
+                head: [['Tanggal', 'Hari', kanan('Total Penjualan')]],
+                body: d.rincianHarian.map(function (h) { return [h.tanggal, h.hari, rp(h.total)]; }),
+                foot: [[{ content: 'Total', colSpan: 2 }, kanan(rp(d.totalPendapatan))]],
+                columnStyles: { 2: { halign: 'right' } }
+            });
+
+            /* 3. Kategori terlaris */
+            judul('Kategori Produk Terlaris');
+            var totalKategori = d.kategori.reduce(function (a, k) { return a + Number(k.jumlah); }, 0);
+            tabel({
+                head: [['Kategori', kanan('Jumlah Terjual'), kanan('Persentase')]],
+                body: d.kategori.length
+                    ? d.kategori.map(function (k) {
+                        var persen = totalKategori > 0 ? Math.round(Number(k.jumlah) / totalKategori * 100) : 0;
+                        return [k.nama, String(k.jumlah), persen + '%'];
+                    })
+                    : [[{ content: 'Belum ada data penjualan pada periode ini.', colSpan: 3, styles: { halign: 'center', textColor: [111, 111, 111] } }]],
+                columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } }
+            });
+
+            /* 4. Detail penjualan (semua baris, bukan hanya satu halaman) */
+            judul('Detail Penjualan');
+            if (d.search) {
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(111, 111, 111);
+                doc.text('Filter produk: "' + d.search + '"', m, y);
+                y += 8;
+            }
+            var jumlahTotal = 0;
+            var hargaTotal = 0;
+            d.detail.forEach(function (r) {
+                jumlahTotal += Number(r.jumlah) || 0;
+                hargaTotal += Number(r.total) || 0;
+            });
+            tabel({
+                head: [['No', 'Tanggal', 'Nama Produk', 'Kategori', kanan('Jml'), kanan('Harga Satuan'), kanan('Total Harga')]],
+                body: d.detail.length
+                    ? d.detail.map(function (r, i) {
+                        return [String(i + 1), r.tanggal ? tgl(r.tanggal) : '-', r.nama_produk, r.kategori,
+                            String(Number(r.jumlah) || 0), rp(r.harga_satuan), rp(r.total)];
+                    })
+                    : [[{ content: 'Data penjualan tidak ditemukan.', colSpan: 7, styles: { halign: 'center', textColor: [111, 111, 111] } }]],
+                foot: d.detail.length
+                    ? [[{ content: 'Total (' + d.detail.length + ' baris)', colSpan: 4 }, kanan(String(jumlahTotal)), '', kanan(rp(hargaTotal))]]
+                    : undefined,
+                columnStyles: {
+                    0: { cellWidth: 28 },
+                    4: { halign: 'right', cellWidth: 34 },
+                    5: { halign: 'right' },
+                    6: { halign: 'right' }
+                }
+            });
+
+            /* Footer + nomor halaman di setiap halaman */
+            var total = doc.getNumberOfPages();
+            for (var i = 1; i <= total; i++) {
+                doc.setPage(i);
+                doc.setDrawColor(243, 204, 214);
+                doc.setLineWidth(1);
+                doc.line(m, tinggi - 34, lebar - m, tinggi - 34);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(111, 111, 111);
+                doc.text('Royal Florist - Laporan Penjualan ' + periode, m, tinggi - 22);
+                doc.text('Halaman ' + i + ' dari ' + total, lebar - m, tinggi - 22, { align: 'right' });
+            }
+
+            return doc;
+        }
+
+        document.getElementById('btnExportPdf').addEventListener('click', function () {
+            var tombol = this;
+            var labelAsal = tombol.innerHTML;
+
+            if (!window.jspdf) {
+                alert('Library PDF belum termuat. Periksa koneksi internet lalu muat ulang halaman.');
+                return;
+            }
+
+            tombol.disabled = true;
+            tombol.textContent = 'Menyiapkan PDF...';
+
+            fetch(tombol.dataset.url, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
+            })
+                .then(function (res) {
+                    if (!res.ok) { throw new Error('Gagal mengambil data (kode ' + res.status + ').'); }
+                    return res.json();
+                })
+                .then(function (d) {
+                    var doc = buatLaporanPdf(window.jspdf.jsPDF, d);
+                    doc.save('laporan-penjualan_' + d.startDate + '_sd_' + d.endDate + '.pdf');
+                })
+                .catch(function (err) {
+                    var pesan = (err instanceof SyntaxError)
+                        ? 'Sesi login mungkin sudah habis. Muat ulang halaman lalu coba lagi.'
+                        : err.message;
+                    alert('Export PDF gagal: ' + pesan);
+                })
+                .finally(function () {
+                    tombol.disabled = false;
+                    tombol.innerHTML = labelAsal;
+                });
+        });
     </script>
 </body>
 </html>
