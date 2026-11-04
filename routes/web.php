@@ -47,9 +47,8 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         // Dashboard
         Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-        // Laporan Penjualan (route statis pdf ditaruh sejajar dengan index)
+        // Laporan Penjualan (Export PDF memakai route ini juga dengan ?format=json)
         Route::get('laporan-penjualan', [LaporanPenjualanController::class, 'index'])->name('laporan.index');
-        Route::get('laporan-penjualan/pdf', [LaporanPenjualanController::class, 'exportPdf'])->name('laporan.pdf');
 
         // Manajemen Staff
         Route::get('karyawan/export', [KaryawanController::class, 'export'])->name('karyawan.export');
