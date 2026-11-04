@@ -32,7 +32,6 @@ Route::post('/login', [AuthController::class, 'login'])->name('login.proses');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'register'])->name('register.proses');
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
-Route::get('laporan-penjualan/pdf', [LaporanPenjualanController::class, 'exportPdf'])->name('laporan.pdf');
 
 /*
 |--------------------------------------------------------------------------
@@ -48,8 +47,9 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         // Dashboard
         Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-        // Laporan Penjualan
+        // Laporan Penjualan (route statis pdf ditaruh sejajar dengan index)
         Route::get('laporan-penjualan', [LaporanPenjualanController::class, 'index'])->name('laporan.index');
+        Route::get('laporan-penjualan/pdf', [LaporanPenjualanController::class, 'exportPdf'])->name('laporan.pdf');
 
         // Manajemen Staff
         Route::get('karyawan/export', [KaryawanController::class, 'export'])->name('karyawan.export');
