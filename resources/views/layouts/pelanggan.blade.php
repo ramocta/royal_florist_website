@@ -79,7 +79,7 @@
                 <a href="{{ url('/') }}">Beranda</a>
                 <a href="{{ route('pelanggan.katalog') }}" class="{{ request()->routeIs('pelanggan.katalog') ? 'on' : '' }}">Katalog</a>
                 <a href="#">Custom Buket</a>
-                <a href="#">Riwayat Pesanan</a>
+                <a href="{{ route('pelanggan.riwayat') }}" class="{{ request()->routeIs('pelanggan.riwayat') ? 'on' : '' }}">Riwayat Pesanan</a>
             </nav>
             <div class="nav-r">
                 <button class="cart" id="cartBtn" type="button" aria-label="Keranjang">

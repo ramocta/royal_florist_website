@@ -11,6 +11,7 @@ use App\Http\Controllers\admin\ProfilController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\pelanggan\KatalogController;
 use App\Http\Controllers\pelanggan\CheckoutController;
+use App\Http\Controllers\pelanggan\RiwayatPesananController;
 use App\Http\Controllers\admin\StockController;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Support\Facades\Route;
@@ -110,6 +111,9 @@ Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])
         // Katalog
         Route::get('katalog', [KatalogController::class, 'index'])->name('katalog');
         Route::get('katalog/data', [KatalogController::class, 'data'])->name('katalog.data');
+
+        // Riwayat Pesanan
+        Route::get('riwayat-pesanan', [RiwayatPesananController::class, 'index'])->name('riwayat');
 
         // Detail produk (aktifkan setelah method show() dan view-nya dibuat)
         // Route::get('produk/{produk}', [KatalogController::class, 'show'])->name('produk.show');
