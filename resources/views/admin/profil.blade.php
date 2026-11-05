@@ -244,11 +244,24 @@ input {
 <main>
   <div class="page-head">
     <div>
-      <h1>Profil & Pengaturan Akun Saya</h1>
-      <p>Kelola informasi akun dan kata sandi Anda.</p>
+        <h1>Profil & Pengaturan Akun Saya</h1>
+        <p>Kelola informasi akun dan kata sandi Anda.</p>
     </div>
-    <button class="btn btn-fill" id="saveBtn">Simpan Perubahan</button>
-  </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+
+        <a href="{{ route('admin.dashboard') }}"
+           class="btn btn-line"
+           style="text-decoration:none; display:inline-block;">
+            ← Kembali ke Dashboard
+        </a>
+
+        <button type="submit" form="formProfil" class="btn btn-fill">
+            Simpan Perubahan
+        </button>
+
+    </div>
+</div>
 
   <div class="layout">
     <section class="card profile">
