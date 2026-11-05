@@ -12,6 +12,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\pelanggan\KatalogController;
 use App\Http\Controllers\pelanggan\CheckoutController;
 use App\Http\Controllers\pelanggan\RiwayatPesananController;
+use App\Http\Controllers\admin\StockController;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -68,6 +69,11 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::get('produk/{produk}/edit', [ProdukController::class, 'edit'])->name('produk.edit');
         Route::put('produk/{produk}', [ProdukController::class, 'update'])->name('produk.update');
         Route::delete('produk/{produk}', [ProdukController::class, 'destroy'])->name('produk.destroy');
+
+        // Rute Untuk Management Stock Produk
+        Route::get('/stok', [StockController::class, 'index'])->name('stok.index');
+        Route::post('/stok/{id}/adjust', [StockController::class, 'adjust'])->name('stok.adjust');
+        Route::delete('/stok/{id}', [StockController::class, 'destroy'])->name('stok.destroy');
 
         // Manajemen Pelanggan
         Route::get('pelanggan', [PelangganController::class, 'index'])->name('pelanggan.index');
