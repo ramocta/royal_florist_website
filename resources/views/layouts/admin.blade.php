@@ -28,8 +28,8 @@
         ['Stok',               'database', 'admin.stok.index',       'admin.stok.*'],
         ['Manajemen Staff',    'users',    'admin.karyawan.index',   'admin.karyawan.*'],
         ['Manajemen Progress', 'progress', 'admin.progress.index',   'admin.progress.*'],
+        ['Profil', 'user', 'admin.profil', 'admin.profil'],
         ['Pengaturan',         'settings', 'admin.pengaturan.index', 'admin.pengaturan.*'],
-        ['Admin Profil', 'user', 'admin.profil', 'admin.profil']
     ];
 
     $namaAdmin = auth()->user()?->nama ?? 'Admin';
