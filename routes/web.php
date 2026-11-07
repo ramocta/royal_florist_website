@@ -1,4 +1,3 @@
-
 <?php
 
 use App\Http\Controllers\admin\DashboardController;
@@ -13,6 +12,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\pelanggan\KatalogController;
 use App\Http\Controllers\pelanggan\CheckoutController;
 use App\Http\Controllers\pelanggan\RiwayatPesananController;
+use App\Http\Controllers\pelanggan\CustomBuketController;
 use App\Http\Controllers\admin\StockController;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Support\Facades\Route;
@@ -96,7 +96,7 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::put('profil', [ProfilController::class, 'update'])->name('profil.update');
         Route::put('profil/password', [ProfilController::class, 'updatePassword'])->name('profil.password');
 
-        //pengaturan
+        // Pengaturan
         Route::get('pengaturan', [PengaturanController::class, 'index'])->name('pengaturan.index');
         Route::put('pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
 
@@ -124,6 +124,17 @@ Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])
         // Route::get('produk/{produk}', [KatalogController::class, 'show'])->name('produk.show');
 
     });
+
+/*
+|--------------------------------------------------------------------------
+| Custom Buket (khusus pelanggan) -> /custom-buket
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])->group(function () {
+    Route::get('/custom-buket', [CustomBuketController::class, 'index'])->name('custom-buket.index');
+    Route::post('/custom-buket', [CustomBuketController::class, 'store'])->name('custom-buket.store');
+});
 
 /*
 |--------------------------------------------------------------------------
