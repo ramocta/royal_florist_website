@@ -8,6 +8,7 @@ use App\Http\Controllers\admin\PelangganController;
 use App\Http\Controllers\admin\PesananController;
 use App\Http\Controllers\admin\ProdukController;
 use App\Http\Controllers\admin\ProfilController;
+use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\pelanggan\KatalogController;
 use App\Http\Controllers\pelanggan\CheckoutController;
@@ -94,6 +95,10 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::get('profil', [ProfilController::class, 'index'])->name('profil');
         Route::put('profil', [ProfilController::class, 'update'])->name('profil.update');
         Route::put('profil/password', [ProfilController::class, 'updatePassword'])->name('profil.password');
+
+        //pengaturan
+        Route::get('pengaturan', [PengaturanController::class, 'index'])->name('pengaturan.index');
+        Route::put('pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
 
     });
 
