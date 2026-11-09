@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
@@ -7,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class ProfilController extends Controller
 {
@@ -59,5 +59,41 @@ class ProfilController extends Controller
         ]);
 
         return back()->with('success', 'Kata sandi berhasil diperbarui.');
+    }
+
+    public function updatePhoto(Request $request)
+    {
+        $request->validate([
+            'foto_profil' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+
+        $user = Auth::user();
+
+        if ($user->foto_profil) {
+            Storage::disk('public')->delete($user->foto_profil);
+        }
+
+        $path = $request->file('foto_profil')->store('foto-profil', 'public');
+
+        $user->update([
+            'foto_profil' => $path,
+        ]);
+
+        return back()->with('success', 'Foto profil berhasil diperbarui.');
+    }
+
+    public function deletePhoto()
+    {
+        $user = Auth::user();
+
+        if ($user->foto_profil) {
+            Storage::disk('public')->delete($user->foto_profil);
+        }
+
+        $user->update([
+            'foto_profil' => null,
+        ]);
+
+        return back()->with('success', 'Foto profil berhasil dihapus.');
     }
 }

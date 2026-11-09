@@ -95,6 +95,12 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::get('profil', [ProfilController::class, 'index'])->name('profil');
         Route::put('profil', [ProfilController::class, 'update'])->name('profil.update');
         Route::put('profil/password', [ProfilController::class, 'updatePassword'])->name('profil.password');
+        Route::post('profil/foto', [ProfilController::class, 'updatePhoto'])->name('profil.foto.update');
+        Route::delete('profil/foto', [ProfilController::class, 'deletePhoto'])->name('profil.foto.delete');
+
+        // Pengaturan
+        Route::get('pengaturan', [PengaturanController::class, 'index'])->name('pengaturan.index');
+        Route::put('pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
 
         // Pengaturan
         Route::get('pengaturan', [PengaturanController::class, 'index'])->name('pengaturan.index');
