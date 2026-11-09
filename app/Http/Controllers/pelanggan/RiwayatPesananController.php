@@ -8,8 +8,10 @@ use Illuminate\Http\Request;
 class RiwayatPesananController extends Controller
 {
     private const KELOMPOK = [
-        'diproses' => ['menunggu_pembayaran', 'menunggu_dikonfirmasi', 'diproses', 'siap_diambil'],
-        'selesai'  => ['selesai'],
+        'diproses'     => ['menunggu_pembayaran', 'menunggu_dikonfirmasi', 'dikonfirmasi', 'diproses'],
+        'siap_diambil' => ['siap_diambil'],
+        'dikirim'      => ['dalam_pengiriman'],
+        'selesai'      => ['selesai'],
     ];
 
     public function index(Request $request)
@@ -17,14 +19,13 @@ class RiwayatPesananController extends Controller
         $filter = $request->query('status', 'semua');
         $orders = $request->user()->orders();
 
-        $jumlah = [
-            'semua'    => (clone $orders)->count(),
-            'diproses' => (clone $orders)->whereIn('status_pesanan', self::KELOMPOK['diproses'])->count(),
-            'selesai'  => (clone $orders)->whereIn('status_pesanan', self::KELOMPOK['selesai'])->count(),
-        ];
+        $jumlah = ['semua' => (clone $orders)->count()];
+        foreach (self::KELOMPOK as $kunci => $status) {
+            $jumlah[$kunci] = (clone $orders)->whereIn('status_pesanan', $status)->count();
+        }
 
         $daftar = $orders
-            ->with('items.product')
+            ->with(['items.product', 'statusHistory'])
             ->when(isset(self::KELOMPOK[$filter]), fn ($q) => $q->whereIn('status_pesanan', self::KELOMPOK[$filter]))
             ->latest('dibuat_pada')
             ->paginate(10)
