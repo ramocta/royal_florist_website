@@ -1,364 +1,483 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Profil & Pengaturan Akun – Royal Florist</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 
+@extends('layouts.admin')
+
+@section('title', 'Profil')
+
+@push('styles')
 <style>
-:root {
-  --maroon:#7a1a33;
-  --dark:#651529;
-  --blush:#fce8ea;
-  --soft:#fdf3f4;
-  --line:#f1dde0;
-  --text:#2a1a1e;
-  --muted:#6f5a5f;
-  --white:#fff;
+.profil-page {
+    color: #2a1a1e;
+    font-family: 'Poppins', sans-serif;
 }
 
-* { box-sizing:border-box; margin:0; padding:0; }
-
-body {
-  font-family:'Poppins',sans-serif;
-  color:var(--text);
-  background:var(--white);
-  font-size:13px;
+.profil-page .page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
 }
 
-button,input { font-family:inherit; }
-
-.topbar {
-  height:68px;
-  background:var(--blush);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 32px;
-  position:fixed;
-  inset:0 0 auto;
-  z-index:10;
+.profil-page h1,
+.profil-page h2,
+.profil-page h3 {
+    font-family: 'Playfair Display', serif;
+    color: #7a1a33;
 }
 
-.brand { color:var(--maroon); }
-.brand b { font:600 24px 'Playfair Display'; }
-.top-right,.user { display:flex; align-items:center; gap:15px; }
-
-.sidebar {
-  position:fixed;
-  top:68px;
-  bottom:0;
-  width:230px;
-  background:var(--maroon);
-  padding:26px 14px;
+.profil-page h1 {
+    font-size: 28px;
+    margin-bottom: 6px;
 }
 
-.sidebar nav,.menu,.stack {
-  display:flex;
-  flex-direction:column;
-  gap:8px;
+.profil-page .subtitle {
+    color: #6f5a5f;
+    font-size: 13px;
 }
 
-.sidebar a {
-  color:#f7dfe3;
-  text-decoration:none;
-  padding:10px 16px;
-  border-radius:10px;
+.profil-page .btn {
+    padding: 10px 16px;
+    border: 1px solid #7a1a33;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    text-decoration: none;
 }
 
-.sidebar a.active {
-  background:white;
-  color:var(--maroon);
+.profil-page .btn-fill {
+    background: #7a1a33;
+    color: white;
 }
 
-main {
-  margin-left:230px;
-  padding:98px 32px 40px;
-  background:var(--soft);
-  min-height:100vh;
+.profil-page .btn-line {
+    background: white;
+    color: #7a1a33;
 }
 
-.page-head {
-  display:flex;
-  justify-content:space-between;
-  margin-bottom:22px;
+.profil-page .layout {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 22px;
 }
 
-h1,.form-card h3 {
-  font-family:'Playfair Display',serif;
-  color:var(--maroon);
+.profil-page .card {
+    background: white;
+    border: 1px solid #f1dde0;
+    border-radius: 14px;
+    padding: 24px;
 }
 
-.btn {
-  padding:11px 15px;
-  border:1px solid var(--maroon);
-  border-radius:8px;
-  cursor:pointer;
+.profil-page .profile-card {
+    text-align: center;
+    height: fit-content;
 }
 
-.btn-fill {
-  background:var(--maroon);
-  color:white;
+.profil-page .photo {
+    width: 90px;
+    height: 90px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    background: #7a1a33;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    font-weight: 600;
+    overflow: hidden;
 }
 
-.btn-line {
-  background:white;
-  color:var(--maroon);
+.profil-page .photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
-.layout {
-  display:grid;
-  grid-template-columns:360px 1fr;
-  gap:24px;
+.profil-page .badge {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 5px 16px;
+    background: #fce8ea;
+    color: #7a1a33;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
 }
 
-.card {
-  background:white;
-  border:1px solid var(--line);
-  border-radius:16px;
+.profil-page .menu {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #f1dde0;
 }
 
-.profile {
-  padding:34px 24px;
-  text-align:center;
+.profil-page .menu button {
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: white;
+    color: #6f5a5f;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
 }
 
-.photo {
-  width:72px;
-  height:72px;
-  margin:0 auto 20px;
-  border-radius:50%;
-  background:var(--maroon);
+.profil-page .menu button.active,
+.profil-page .menu button:hover {
+    background: #fce8ea;
+    color: #7a1a33;
 }
 
-.badge {
-  display:inline-block;
-  margin-top:10px;
-  padding:4px 16px;
-  background:var(--blush);
-  color:var(--maroon);
-  border-radius:20px;
+.profil-page .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    min-width: 0;
 }
 
-.menu {
-  margin-top:22px;
-  padding-top:14px;
-  border-top:1px solid var(--line);
+.profil-page .form-card h3 {
+    font-size: 18px;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid #f1dde0;
 }
 
-.menu button {
-  padding:14px;
-  border:0;
-  border-radius:10px;
-  background:white;
-  text-align:left;
-  cursor:pointer;
+.profil-page .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
 }
 
-.menu button.active {
-  background:var(--blush);
-  color:var(--maroon);
+.profil-page .full {
+    grid-column: 1 / -1;
 }
 
-.stack { gap:24px; }
-
-.form-card { padding:24px; }
-
-.form-card h3 {
-  font-size:17px;
-  padding-bottom:14px;
-  margin-bottom:16px;
-  border-bottom:1px solid var(--line);
+.profil-page label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 7px;
+    font-size: 12px;
 }
 
-.grid {
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:16px;
+.profil-page input,
+.profil-page textarea {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid #f1dde0;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
 }
 
-.full { grid-column:1/-1; }
-
-label {
-  display:block;
-  font-weight:600;
-  margin-bottom:6px;
+.profil-page input:focus,
+.profil-page textarea:focus {
+    border-color: #7a1a33;
 }
 
-input {
-  width:100%;
-  height:42px;
-  padding:10px;
-  border:1px solid var(--line);
-  border-radius:8px;
+.profil-page textarea {
+    min-height: 90px;
+    resize: vertical;
 }
 
-.actions {
-  display:flex;
-  justify-content:flex-end;
-  margin-top:22px;
+.profil-page .actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
 }
 
-.msg { margin-top:8px; }
-
-@media(max-width:1000px) {
-  .layout { grid-template-columns:1fr; }
+.profil-page .alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 18px;
+    font-size: 13px;
 }
 
-@media(max-width:760px) {
-  .sidebar { display:none; }
-  main { margin:0; padding:90px 16px; }
-  .grid { grid-template-columns:1fr; }
-  .page-head { flex-direction:column; gap:14px; }
+.profil-page .success {
+    background: #e8f7ed;
+    color: #216b3a;
+}
+
+.profil-page .error {
+    background: #fdebed;
+    color: #a32636;
+}
+
+.profil-page .field-error {
+    color: #c62828;
+    font-size: 11px;
+    margin-top: 5px;
+}
+
+.profil-page .photo-form {
+    margin-top: 20px;
+    text-align: left;
+}
+
+.profil-page .photo-form input {
+    margin-bottom: 12px;
+}
+
+.profil-page .photo-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.profil-page .photo-actions button {
+    font-size: 11px;
+}
+
+@media(max-width: 1000px) {
+    .profil-page .layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media(max-width: 600px) {
+    .profil-page .grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profil-page .full {
+        grid-column: auto;
+    }
+
+    .profil-page .page-head {
+        align-items: flex-start;
+    }
+
+    .profil-page .card {
+        padding: 18px;
+    }
 }
 </style>
-</head>
+@endpush
 
-<body>
+@section('content')
+<div class="profil-page">
 
-<header class="topbar">
-  <div class="brand">
-    <b>Royal Florist</b>
-    <small>Fresh Flower • Special Moment</small>
-  </div>
-  <div class="top-right">
-    <span>16 - 22 September 2026</span>
-    <div class="user">Admin</div>
-  </div>
-</header>
-
-<aside class="sidebar">
-  <nav>
-    <a href="#">Dashboard</a>
-    <a href="#">Laporan Penjualan</a>
-    <a href="#">Pelanggan</a>
-    <a href="#">Pesanan</a>
-    <a href="#">Produk</a>
-    <a href="#">Stok</a>
-    <a href="#">Manajemen Staff</a>
-    <a href="#" class="active">Profil & Pengaturan Saya</a>
-  </nav>
-</aside>
-
-<main>
-  <div class="page-head">
-    <div>
-        <h1>Profil & Pengaturan Akun Saya</h1>
-        <p>Kelola informasi akun dan kata sandi Anda.</p>
-    </div>
-
-    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-
-        <a href="{{ route('admin.dashboard') }}"
-           class="btn btn-line"
-           style="text-decoration:none; display:inline-block;">
-            ← Kembali ke Dashboard
-        </a>
+    <div class="page-head">
+        <div>
+            <h1>Profil</h1>
+            <p class="subtitle">Kelola informasi akun dan kata sandi Anda.</p>
+        </div>
 
         <button type="submit" form="formProfil" class="btn btn-fill">
             Simpan Perubahan
         </button>
+    </div>
 
+    @if(session('success'))
+        <div class="alert success">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="alert error">
+            <strong>Periksa kembali data yang dimasukkan.</strong>
+            <ul style="padding-left:20px; margin-top:6px;">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <div class="layout">
+
+        <section class="card profile-card">
+
+            <div class="photo">
+                @if($user->foto_profil)
+                    <img src="{{ asset('storage/' . $user->foto_profil) }}" alt="Foto profil">
+                @else
+                    {{ strtoupper(substr($user->nama ?? 'A', 0, 1)) }}
+                @endif
+            </div>
+
+            <h2>{{ $user->nama }}</h2>
+            <p style="font-size:12px; color:#6f5a5f; margin-top:5px;">
+                {{ $user->email }}
+            </p>
+
+            <span class="badge">
+                {{ strtoupper($user->role ?? 'ADMIN') }}
+            </span>
+
+            <div class="photo-form">
+                <form action="{{ route('admin.profil.foto.update') }}"
+                      method="POST"
+                      enctype="multipart/form-data">
+                    @csrf
+
+                    <label>Foto Profil</label>
+                    <input type="file" name="foto_profil" accept="image/*">
+
+                    <div class="photo-actions">
+                        <button type="submit" class="btn btn-fill">
+                            Upload Foto
+                        </button>
+                    </div>
+                </form>
+
+                @if($user->foto_profil)
+                    <form action="{{ route('admin.profil.foto.delete') }}"
+                          method="POST"
+                          style="margin-top:10px;">
+                        @csrf
+                        @method('DELETE')
+
+                        <button type="submit" class="btn btn-line"
+                                onclick="return confirm('Hapus foto profil?')">
+                            Hapus Foto
+                        </button>
+                    </form>
+                @endif
+            </div>
+
+            <div class="menu">
+                <button type="button" class="active" data-target="sec-data">
+                    Data Diri Saya
+                </button>
+
+                <button type="button" data-target="sec-pass">
+                    Ubah Kata Sandi
+                </button>
+            </div>
+
+        </section>
+
+        <div class="stack">
+
+            <section class="card form-card" id="sec-data">
+
+                <h3>Informasi Data Diri Saya</h3>
+
+                <form action="{{ route('admin.profil.update') }}"
+                      method="POST"
+                      id="formProfil">
+                    @csrf
+                    @method('PUT')
+
+                    <div class="grid">
+
+                        <div class="full">
+                            <label>Nama Lengkap</label>
+                            <input type="text"
+                                   name="nama"
+                                   value="{{ old('nama', $user->nama) }}"
+                                   required>
+                            @error('nama')
+                                <div class="field-error">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label>Email</label>
+                            <input type="email"
+                                   name="email"
+                                   value="{{ old('email', $user->email) }}"
+                                   required>
+                            @error('email')
+                                <div class="field-error">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label>Nomor Telepon</label>
+                            <input type="tel"
+                                   name="nmr_telepon"
+                                   value="{{ old('nmr_telepon', $user->nmr_telepon) }}"
+                                   required>
+                            @error('nmr_telepon')
+                                <div class="field-error">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="full">
+                            <label>Alamat</label>
+                            <textarea name="alamat" required>{{ old('alamat', $user->alamat) }}</textarea>
+                            @error('alamat')
+                                <div class="field-error">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                    </div>
+                </form>
+
+            </section>
+
+            <section class="card form-card" id="sec-pass">
+
+                <h3>Ubah Kata Sandi</h3>
+
+                <form action="{{ route('admin.profil.password') }}"
+                      method="POST">
+                    @csrf
+                    @method('PUT')
+
+                    <div class="grid">
+
+                        <div class="full">
+                            <label>Kata Sandi Saat Ini</label>
+                            <input type="password"
+                                   name="password_lama"
+                                   required>
+                            @error('password_lama')
+                                <div class="field-error">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label>Kata Sandi Baru</label>
+                            <input type="password"
+                                   name="password_baru"
+                                   required>
+                            @error('password_baru')
+                                <div class="field-error">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label>Konfirmasi Kata Sandi Baru</label>
+                            <input type="password"
+                                   name="password_baru_confirmation"
+                                   required>
+                        </div>
+
+                    </div>
+
+                    <div class="actions">
+                        <button type="submit" class="btn btn-fill">
+                            Update Password
+                        </button>
+                    </div>
+
+                </form>
+
+            </section>
+
+        </div>
     </div>
 </div>
 
-  <div class="layout">
-    <section class="card profile">
-      <div class="photo"></div>
-      <h2 id="fullName">Siska Amelia</h2>
-      <p>siska.amelia@royalflorist.com</p>
-      <span class="badge">ADMIN TOKO</span>
-
-      <div class="menu">
-        <button class="active" data-target="sec-data">Data Diri Saya</button>
-        <button data-target="sec-pass">Ubah Kata Sandi</button>
-      </div>
-    </section>
-
-    <div class="stack">
-      <section class="card form-card" id="sec-data">
-        <h3>Informasi Data Diri Saya</h3>
-        <div class="grid">
-          <div>
-            <label>Nama Depan</label>
-            <input id="first" value="Siska">
-          </div>
-          <div>
-            <label>Nama Belakang</label>
-            <input id="last" value="Amelia">
-          </div>
-          <div>
-            <label>Email</label>
-            <input type="email" value="siska.amelia@royalflorist.com">
-          </div>
-          <div>
-            <label>Nomor Telepon</label>
-            <input type="tel" value="+62 812-3456-7890">
-          </div>
-          <div class="full">
-            <label>Jabatan</label>
-            <input value="Penanggung Jawab Penjualan & Operasional">
-          </div>
-        </div>
-      </section>
-
-      <section class="card form-card" id="sec-pass">
-        <h3>Ubah Kata Sandi</h3>
-        <div class="grid">
-          <div class="full">
-            <label>Kata Sandi Saat Ini</label>
-            <input type="password">
-          </div>
-          <div>
-            <label>Kata Sandi Baru</label>
-            <input id="newPass" type="password">
-          </div>
-          <div>
-            <label>Konfirmasi Kata Sandi</label>
-            <input id="confPass" type="password">
-          </div>
-        </div>
-        <div class="msg" id="passMsg"></div>
-        <div class="actions">
-          <button class="btn btn-line" id="passBtn">Update Password</button>
-        </div>
-      </section>
-    </div>
-  </div>
-</main>
-
 <script>
-document.querySelectorAll('.menu button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.menu button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(btn.dataset.target)
-      .scrollIntoView({behavior:'smooth'});
-  });
-});
+document.querySelectorAll('.profil-page .menu button').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.profil-page .menu button')
+            .forEach(item => item.classList.remove('active'));
 
-document.getElementById('saveBtn').addEventListener('click', function() {
-  const name = document.getElementById('first').value + ' ' +
-               document.getElementById('last').value;
-  document.getElementById('fullName').textContent = name.trim();
-  this.textContent = 'Tersimpan';
-});
+        btn.classList.add('active');
 
-document.getElementById('passBtn').addEventListener('click', () => {
-  const n = document.getElementById('newPass').value;
-  const c = document.getElementById('confPass').value;
-  const msg = document.getElementById('passMsg');
-
-  if (n.length < 8) {
-    msg.textContent = 'Kata sandi minimal 8 karakter.';
-  } else if (n !== c) {
-    msg.textContent = 'Konfirmasi kata sandi tidak sama.';
-  } else {
-    msg.textContent = 'Kata sandi berhasil diperbarui.';
-  }
+        document.getElementById(btn.dataset.target)
+            .scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
 });
 </script>
-
-</body>
-</html>
+@endsection
