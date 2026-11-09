@@ -5,20 +5,21 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class PengaturanController extends Controller
 {
-    // Tab "Profil Toko": tampilkan form (nilainya dibaca langsung di view lewat Setting::ambil)
+    /* ===================== TAB: PROFIL TOKO ===================== */
+
     public function index()
     {
         return view('admin.pengaturan-profil');
     }
 
-    // Tab "Profil Toko": simpan
     public function update(Request $request)
     {
-        // Hanya kunci yang ada di aturan() yang lolos, jadi tidak ada isian liar yang bisa masuk tabel
-        $data = $request->validate($this->aturan(), $this->pesan(), $this->label());
+        // Hanya kunci yang ada di aturan yang lolos, jadi tidak ada isian liar yang bisa masuk tabel
+        $data = $request->validate($this->aturanProfil(), $this->pesan(), $this->label());
 
         // Checkbox yang tidak dicentang tidak terkirim sama sekali, jadi ubah ke '1' atau '0' secara eksplisit
         $data['toko_buka'] = $request->boolean('toko_buka') ? '1' : '0';
@@ -28,7 +29,40 @@ class PengaturanController extends Controller
         return redirect()->route('admin.pengaturan.index')->with('success', 'Pengaturan toko disimpan.');
     }
 
-    private function aturan(): array
+    /* ================= TAB: MANAJEMEN LANDING PAGE ================= */
+
+    public function landing()
+    {
+        return view('admin.pengaturan-landing');
+    }
+
+    public function updateLanding(Request $request)
+    {
+        $data = $request->validate($this->aturanLanding(), $this->pesan(), $this->label());
+
+        // Gambar bukan teks, jadi dikeluarkan dulu dari $data dan diproses terpisah
+        unset($data['hero_gambar']);
+        $gambarLama = Setting::ambil('hero_gambar');
+
+        if ($request->hasFile('hero_gambar')) {
+            // Disimpan di storage/app/public/landing/ dengan nama acak (aman dari nama file yang aneh atau bentrok).
+            // Yang masuk database hanya alamat file-nya, misalnya "landing/AbC123.png"
+            $data['hero_gambar'] = $request->file('hero_gambar')->store('landing', 'public');
+        }
+
+        Setting::simpan($data);
+
+        // Hapus gambar lama SETELAH data baru tersimpan, supaya kalau penyimpanan gagal gambar lama masih ada
+        if (isset($data['hero_gambar']) && $gambarLama) {
+            Storage::disk('public')->delete($gambarLama);
+        }
+
+        return redirect()->route('admin.pengaturan.landing')->with('success', 'Landing page diperbarui.');
+    }
+
+    /* ========================= ATURAN ========================= */
+
+    private function aturanProfil(): array
     {
         return [
             'toko_nama'            => 'required|string|max:100',
@@ -41,14 +75,31 @@ class PengaturanController extends Controller
         ];
     }
 
+    private function aturanLanding(): array
+    {
+        return [
+            'hero_judul'       => 'required|string|max:150',
+            'hero_deskripsi'   => 'required|string|max:300',
+            'hero_tombol_teks' => 'required|string|max:30',
+            // max di sini dalam KB (2048 = 2 MB). SVG sengaja tidak diizinkan karena bisa memuat skrip.
+            'hero_gambar'      => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'footer_deskripsi' => 'required|string|max:300',
+        ];
+    }
+
     private function pesan(): array
     {
         return [
             'required' => ':attribute wajib diisi.',
             'email'    => 'Format email tidak valid.',
-            'max'      => ':attribute maksimal :max karakter.',
+            'max'      => [
+                'string' => ':attribute maksimal :max karakter.',
+                'file'   => 'Ukuran :attribute maksimal 2 MB.',
+            ],
             'string'   => ':attribute harus berupa teks.',
             'regex'    => 'Format :attribute tidak valid (hanya angka, spasi, +, -, dan tanda kurung).',
+            'image'    => ':attribute harus berupa gambar.',
+            'mimes'    => ':attribute harus berformat JPG atau PNG.',
         ];
     }
 
@@ -61,6 +112,11 @@ class PengaturanController extends Controller
             'toko_alamat'          => 'Alamat toko',
             'toko_jam_senin_sabtu' => 'Jam operasional Senin-Sabtu',
             'toko_jam_minggu'      => 'Jam operasional Minggu',
+            'hero_judul'           => 'Judul utama',
+            'hero_deskripsi'       => 'Deskripsi banner',
+            'hero_tombol_teks'     => 'Teks tombol',
+            'hero_gambar'          => 'Gambar hero',
+            'footer_deskripsi'     => 'Deskripsi footer',
         ];
     }
 }

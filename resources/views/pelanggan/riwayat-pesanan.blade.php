@@ -3,6 +3,7 @@
     $nav = [
         ['Beranda', url('/'), request()->is('/')],
         ['Katalog', Route::has('pelanggan.katalog') ? route('pelanggan.katalog') : '#', request()->routeIs('pelanggan.katalog*')],
+        ['Custom Buket', Route::has('custom-buket.index') ? route('custom-buket.index') : '#', request()->routeIs('custom-buket.*')],
         ['Riwayat Pesanan', route('pelanggan.riwayat'), request()->routeIs('pelanggan.riwayat')],
     ];
 @endphp
@@ -60,22 +61,24 @@
     $statusUi = [
         'menunggu_pembayaran'   => ['Menunggu Pembayaran', 'bg-amber-100 text-amber-800'],
         'menunggu_dikonfirmasi' => ['Menunggu Konfirmasi', 'bg-amber-100 text-amber-800'],
-        'diproses'              => ['Sedang Diproses', 'bg-amber-100 text-amber-800'],
-        'siap_diambil'          => ['Siap Diambil', 'bg-blue-100 text-blue-800'],
+        'dikonfirmasi'          => ['Dikonfirmasi', 'bg-amber-100 text-amber-800'],
+        'diproses'              => ['Diproses', 'bg-amber-100 text-amber-800'],
+        'dalam_pengiriman'      => ['Dalam Pengiriman', 'bg-yellow-100 text-yellow-800'],
+        'siap_diambil'          => ['Siap Diambil', 'bg-sky-100 text-sky-800'],
         'selesai'               => ['Selesai', 'bg-green-100 text-green-800'],
         'dibatalkan'            => ['Dibatalkan', 'bg-rose-100 text-rose-700'],
     ];
-    $metode = ['bayar_di_toko' => 'Bayar di Toko', 'QRIS' => 'QRIS', 'transfer_bank' => 'Transfer Bank'];
+    $metode = ['bayar_di_toko' => 'Kasir Toko', 'QRIS' => 'QRIS', 'transfer_bank' => 'Transfer Bank'];
     $bayarUi = [
-        'belum_dibayar' => ['Belum Dibayar', 'text-rose-700'],
-        'proses'        => ['Menunggu Verifikasi', 'text-amber-700'],
-        'lunas'         => ['Lunas', 'text-green-700'],
+        'belum_dibayar' => 'Belum Dibayar',
+        'proses'        => 'Menunggu Verifikasi',
+        'lunas'         => 'Lunas',
     ];
-    $tabs = ['semua' => 'Semua', 'diproses' => 'Diproses', 'selesai' => 'Selesai'];
+    $tabs = ['semua' => 'Semua', 'diproses' => 'Diproses', 'siap_diambil' => 'Siap Diambil', 'dikirim' => 'Dikirim', 'selesai' => 'Selesai'];
 @endphp
 
 <h1 class="font-display text-3xl font-semibold text-maroon">Riwayat Pesanan</h1>
-<p class="mt-1 text-xs text-neutral-600">Pantau proses pesanan bunga Anda beserta status pengiriman dan pengambilan di toko.</p>
+<p class="mt-1 text-xs text-neutral-600">Pantau status pesanan bunga Anda: diproses, dikirim, atau siap diambil di toko.</p>
 
 <div class="mt-4 flex flex-wrap gap-2">
     @foreach ($tabs as $kunci => $label)
@@ -89,35 +92,53 @@
 <div class="mt-6 space-y-5">
     @forelse ($daftar as $o)
         @php
+            $dikirim  = $o->jenis_pengambilan === 'dikirim';
             $item     = $o->items->first();
             $produk   = $item?->product;
             $lainnya  = $o->items->count() - 1;
+            $batal    = $o->status_pesanan === 'dibatalkan';
             [$statusLabel, $statusClass] = $statusUi[$o->status_pesanan];
-            [$bayarLabel, $bayarClass]   = $bayarUi[$o->status_pembayaran];
             if ($o->status_pesanan === 'selesai' && $o->status_pembayaran === 'lunas') {
                 $statusLabel = 'Selesai & Lunas';
             }
+
+            $foto = $o->foto_buket ? \Illuminate\Support\Facades\Storage::disk('public')->url($o->foto_buket) : $produk?->foto_url;
+
+            $langkah = [
+                'dikonfirmasi' => 'Dikonfirmasi',
+                'diproses'     => 'Diproses',
+                ($dikirim ? 'dalam_pengiriman' : 'siap_diambil') => $dikirim ? 'Dalam Pengiriman' : 'Siap Diambil',
+                'selesai'      => 'Selesai',
+            ];
+            $urutan  = array_keys($langkah);
+            $posisi  = array_search($o->status_pesanan, $urutan, true);
+            $posisi  = $posisi === false ? -1 : $posisi;
+            $tuntas  = $o->status_pesanan === 'selesai';
+
+            $riwayat = $o->statusHistory->sortBy('diubah_pada')->groupBy('status_pesanan');
+            $jam = function ($kunci) use ($riwayat) {
+                $baris = $riwayat->get($kunci)?->last();
+                return $baris ? \Illuminate\Support\Carbon::parse($baris->diubah_pada)->format('H:i') . ' WIB' : null;
+            };
+            $estimasi = $o->estimasi_tiba ? \Illuminate\Support\Carbon::parse($o->estimasi_tiba)->format('H:i') . ' WIB' : null;
         @endphp
 
         <article class="overflow-hidden rounded-3xl bg-white shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-2 bg-pinksoft px-7 py-4 text-xs">
                 <div class="flex flex-wrap items-center gap-x-8 gap-y-1">
-                    <span class="font-bold uppercase text-neutral-900">Ambil Mandiri di Toko</span>
+                    <span class="font-bold uppercase text-neutral-900">{{ $dikirim ? 'Dikirim Kurir' : 'Ambil Mandiri di Toko' }}</span>
                     <span class="text-neutral-600">No. Pesanan: <b class="text-maroon">#{{ $o->no_invoice }}</b></span>
                     <span class="text-neutral-600">Tanggal: {{ $o->dibuat_pada->locale('id')->translatedFormat('d F Y, H:i') }} WIB</span>
-                    @if ($o->jadwal_pengambilan)
-                        <span class="text-neutral-600">Tanggal Ambil: {{ $o->jadwal_pengambilan->locale('id')->translatedFormat('d F Y') }}</span>
-                    @endif
                 </div>
                 <span class="rounded-full px-4 py-1.5 text-[11px] font-bold {{ $statusClass }}">{{ $statusLabel }}</span>
             </div>
 
-            <div class="px-7 py-6">
+            <div class="space-y-4 px-7 py-6">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <div class="flex items-center gap-5">
-                        <div class="shrink-0 overflow-hidden bg-pinkcard" style="width: 90px; height: 78px; border-radius: 14px;">
-                            @if ($produk?->foto_url)
-                                <img src="{{ $produk->foto_url }}" alt="{{ $produk->nama_produk }}" style="width: 100%; height: 100%; object-fit: cover;">
+                        <div class="shrink-0 overflow-hidden bg-pinkcard" style="width: 80px; height: 72px; border-radius: 14px;">
+                            @if ($foto)
+                                <img src="{{ $foto }}" alt="Foto pesanan" style="width: 100%; height: 100%; object-fit: cover;">
                             @endif
                         </div>
                         <div>
@@ -125,31 +146,83 @@
                                 {{ $produk?->nama_produk ?? 'Produk tidak tersedia' }}
                                 @if ($lainnya > 0) (+{{ $lainnya }} Item lainnya) @endif
                             </p>
-                            <p class="mt-1 text-xs text-neutral-600">Lokasi Ambil: Outlets Royal Florist</p>
+                            <p class="mt-1 text-xs text-neutral-600">
+                                @if ($dikirim) Tujuan: {{ $o->alamat_tujuan ?: '-' }} @else Lokasi Ambil: Outlets Royal Florist @endif
+                            </p>
                             <p class="mt-1 text-xs font-bold {{ $o->metode_pembayaran === 'bayar_di_toko' ? 'text-green-800' : 'text-maroon' }}">
-                                Pembayaran {{ $metode[$o->metode_pembayaran] }}: {{ $bayarLabel }}
+                                Pembayaran {{ $metode[$o->metode_pembayaran] }}: {{ $bayarUi[$o->status_pembayaran] }}
                             </p>
                         </div>
                     </div>
 
                     <div class="text-right">
                         <p class="text-xs text-neutral-600">{{ $o->metode_pembayaran === 'bayar_di_toko' ? 'Total Tagihan Kasir:' : 'Total Pembayaran:' }}</p>
-                        <p class="text-2xl font-bold {{ $o->metode_pembayaran === 'bayar_di_toko' ? 'text-neutral-900' : 'text-maroon' }}">{{ $rp($o->total_harga) }}</p>
+                        <p class="text-2xl font-bold text-maroon">{{ $rp($o->total_harga) }}</p>
                     </div>
                 </div>
 
-                @if ($o->bukti_pembayaran || in_array($o->status_pesanan, ['selesai', 'dibatalkan']))
-                    <div class="mt-5 flex flex-wrap gap-3 border-t border-pinkline pt-5">
-                        @if ($o->bukti_pembayaran)
-                            <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($o->bukti_pembayaran) }}" target="_blank"
-                               class="rounded-full border-2 border-maroon px-7 py-2.5 text-xs font-bold text-maroon hover:bg-pinksoft">Lihat Bukti Bayar</a>
-                        @endif
-                        @if (in_array($o->status_pesanan, ['selesai', 'dibatalkan']))
-                            <a href="{{ route('pelanggan.katalog') }}"
-                               class="rounded-full bg-maroon px-7 py-2.5 text-xs font-bold text-white hover:opacity-90">Pesan Lagi &rarr;</a>
+                @if ($batal)
+                    <div class="rounded-2xl bg-rose-50 px-5 py-4 text-xs text-rose-700">
+                        <b>Pesanan dibatalkan.</b>
+                        @if ($o->catatan_toko) {{ $o->catatan_toko }} @endif
+                    </div>
+                @else
+                    <div class="rounded-2xl bg-pinksoft px-5 py-4">
+                        <p class="mb-3 text-[11px] font-bold text-neutral-900">Status Pesanan:</p>
+                        <div class="flex items-start">
+                            @foreach ($langkah as $kunci => $nama)
+                                @php
+                                    $i = $loop->index;
+                                    $selesaiLangkah = $tuntas || $i < $posisi;
+                                    $sekarang = ! $tuntas && $i === $posisi;
+                                    $waktu = $jam($kunci);
+                                    if (! $waktu && $kunci === 'dalam_pengiriman' && $estimasi) $waktu = 'Estimasi ' . $estimasi;
+                                @endphp
+                                <div class="relative flex flex-1 flex-col items-center text-center">
+                                    @if ($i > 0)
+                                        <span class="absolute" style="top: 11px; left: -50%; width: 100%; height: 2px; background: {{ ($tuntas || $i <= $posisi) ? '#7a1f3d' : '#e4d3d9' }};"></span>
+                                    @endif
+                                    <span class="relative z-10 grid place-items-center rounded-full text-[10px] font-bold"
+                                          style="width: 24px; height: 24px; {{ $selesaiLangkah ? 'background:#7a1f3d;color:#fff;' : ($sekarang ? 'background:#fff;border:3px solid #7a1f3d;color:#7a1f3d;' : 'background:#e4d3d9;color:#7a6b70;') }}">
+                                        {{ $selesaiLangkah ? '✓' : ($sekarang ? '' : $i + 1) }}
+                                    </span>
+                                    <span class="mt-1.5 text-[11px] font-semibold text-neutral-900">{{ $nama }}</span>
+                                    <span class="text-[10px] text-neutral-500">{{ $waktu ?? '-' }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                @if (! $batal && ($o->catatan_toko || ($dikirim && $o->nama_kurir) || $estimasi))
+                    <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-pinkline px-5 py-3 text-xs">
+                        <p class="font-semibold text-neutral-900">
+                            @if ($dikirim && $o->nama_kurir)
+                                Kurir: {{ $o->nama_kurir }} &middot; {{ $o->no_hp_kurir }}
+                                @if ($o->catatan_toko) | @endif
+                            @endif
+                            @if ($o->catatan_toko) Catatan toko: {{ $o->catatan_toko }} @endif
+                        </p>
+                        @if ($dikirim && $estimasi)
+                            <p class="font-bold text-maroon">Estimasi tiba {{ $estimasi }}</p>
                         @endif
                     </div>
                 @endif
+
+                <div class="flex flex-wrap gap-3">
+                    @if ($dikirim && $o->status_pesanan === 'dalam_pengiriman' && $o->no_hp_kurir)
+                        <a href="tel:{{ preg_replace('/[^0-9+]/', '', $o->no_hp_kurir) }}"
+                           class="rounded-full bg-maroon px-7 py-2.5 text-xs font-bold text-white hover:opacity-90">Hubungi Kurir</a>
+                    @endif
+                    @if ($o->bukti_pembayaran)
+                        <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($o->bukti_pembayaran) }}" target="_blank"
+                           class="rounded-full border-2 border-maroon px-7 py-2.5 text-xs font-bold text-maroon hover:bg-pinksoft">Lihat Bukti Bayar</a>
+                    @endif
+                    @if (in_array($o->status_pesanan, ['selesai', 'dibatalkan']))
+                        <a href="{{ route('pelanggan.katalog') }}"
+                           class="rounded-full bg-maroon px-7 py-2.5 text-xs font-bold text-white hover:opacity-90">Pesan Lagi &rarr;</a>
+                    @endif
+                </div>
             </div>
         </article>
     @empty
