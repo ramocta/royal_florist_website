@@ -99,6 +99,8 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         // Pengaturan
         Route::get('pengaturan', [PengaturanController::class, 'index'])->name('pengaturan.index');
         Route::put('pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
+        Route::get('pengaturan/landing', [PengaturanController::class, 'landing'])->name('pengaturan.landing');
+        Route::put('pengaturan/landing', [PengaturanController::class, 'updateLanding'])->name('pengaturan.landing.update');
 
     });
 

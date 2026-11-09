@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class Setting extends Model
 {
@@ -21,6 +22,7 @@ class Setting extends Model
      * Satu-satunya tempat nilai bawaan ditulis, supaya tidak ada dua versi yang berbeda.
      */
     public const DEFAULTS = [
+        // Profil Toko
         'toko_nama'            => 'Royal Florist',
         'toko_email'           => 'info@royalflorist.com',
         'toko_whatsapp'        => '+62 857-3589-6196',
@@ -28,6 +30,12 @@ class Setting extends Model
         'toko_jam_senin_sabtu' => 'Senin - Sabtu (08:00 - 20:00)',
         'toko_jam_minggu'      => 'Minggu (09:00 - 17:00)',
         'toko_buka'            => '1',
+
+        // Landing page: banner (hero) dan footer
+        'hero_judul'           => 'Abadikan Momen Berharga Dengan Sentuhan Rangkaian Bunga Elegan',
+        'hero_deskripsi'       => 'Pilihan terbaik untuk Buket Bunga Segar, Papan Ucapan Acara, dan Seserahan Hantaran.',
+        'hero_tombol_teks'     => 'Pesan Sekarang',
+        'footer_deskripsi'     => 'Toko bunga dan florist profesional untuk berbagai momen spesial. Menyediakan rangkaian bunga segar berkualitas.',
     ];
 
     // Seluruh isi tabel dibaca sekali per request, lalu disimpan di sini supaya tidak query berulang
@@ -42,6 +50,23 @@ class Setting extends Model
     public static function ambil(string $kunci, ?string $cadangan = null): ?string
     {
         return self::semua()[$kunci] ?? $cadangan ?? (self::DEFAULTS[$kunci] ?? null);
+    }
+
+    /**
+     * Alamat (URL) gambar yang diunggah admin, misalnya banner.
+     * Kalau belum pernah diunggah, ATAU file-nya tidak ada di komputer ini
+     * (folder storage tidak ikut Git), dipakai gambar bawaan di folder public/.
+     * Jadi halaman tidak pernah menampilkan gambar rusak.
+     */
+    public static function gambar(string $kunci, string $bawaan): string
+    {
+        $berkas = self::ambil($kunci);
+
+        if ($berkas && Storage::disk('public')->exists($berkas)) {
+            return asset('storage/' . $berkas);
+        }
+
+        return asset($bawaan);
     }
 
     // Simpan banyak isian sekaligus. Baris ada -> diubah, belum ada -> dibuat.
