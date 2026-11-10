@@ -14,6 +14,7 @@ use App\Http\Controllers\pelanggan\CheckoutController;
 use App\Http\Controllers\pelanggan\RiwayatPesananController;
 use App\Http\Controllers\pelanggan\CustomBuketController;
 use App\Http\Controllers\admin\StockController;
+use App\Http\Controllers\admin\OrderProgressController;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -75,6 +76,10 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::get('/stok', [StockController::class, 'index'])->name('stok.index');
         Route::post('/stok/{id}/adjust', [StockController::class, 'adjust'])->name('stok.adjust');
         Route::delete('/stok/{id}', [StockController::class, 'destroy'])->name('stok.destroy');
+
+        //Rute Untuk Management Order Progress
+        Route::get('/progress', [OrderProgressController::class, 'index'])->name('progress.index');
+        Route::patch('/progress/{id}/status', [OrderProgressController::class, 'updateStatus'])->name('progress.updateStatus');
 
         // Manajemen Pelanggan
         Route::get('pelanggan', [PelangganController::class, 'index'])->name('pelanggan.index');
