@@ -71,12 +71,12 @@
 <body>
     <header class="nav">
         <div class="nav-in">
-            <a class="brand" href="{{ url('/') }}">
+            <a class="brand" href="{{ route('pelanggan.beranda') }}">
                 <svg width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="9" r="6" fill="#f4b6c6"/><circle cx="9" cy="17" r="6" fill="#e9a4b8"/><circle cx="23" cy="17" r="6" fill="#f4b6c6"/><circle cx="16" cy="23" r="6" fill="#e9a4b8"/><circle cx="16" cy="16" r="4" fill="#fff"/></svg>
                 Royal Florist
             </a>
             <nav class="links" aria-label="Menu utama">
-                <a href="{{ url('/') }}">Beranda</a>
+                <a href="{{ route('pelanggan.beranda') }}"class="{{ request()->routeIs('pelanggan.beranda') ? 'on' : '' }}">Beranda</a>
                 <a href="{{ route('pelanggan.katalog') }}" class="{{ request()->routeIs('pelanggan.katalog') ? 'on' : '' }}">Katalog</a>
                 <a href="{{ route('custom-buket.index') }}" class="{{ request()->routeIs('custom-buket.*') ? 'on' : '' }}">Custom Buket</a>
                 <a href="{{ route('pelanggan.riwayat') }}" class="{{ request()->routeIs('pelanggan.riwayat') ? 'on' : '' }}">Riwayat Pesanan</a>
@@ -109,23 +109,31 @@
         </div>
     </footer>
 
-    <nav class="tabbar" aria-label="Menu utama">
-        <a class="tab" href="{{ url('/') }}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Beranda
-        </a>
-        <a class="tab {{ request()->routeIs('pelanggan.katalog') ? 'on' : '' }}" href="{{ route('pelanggan.katalog') }}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Katalog
-        </a>
-        <a class="tab {{ request()->routeIs('custom-buket.*') ? 'on' : '' }}" href="{{ route('custom-buket.index') }}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>Custom
-        </a>
-        <a class="tab {{ request()->routeIs('pelanggan.riwayat') ? 'on' : '' }}" href="{{ route('pelanggan.riwayat') }}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6"/></svg>Pesanan
-        </a>
-        <a class="tab" href="#">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Profil
-        </a>
-    </nav>
+   
+<nav class="tabbar" aria-label="Menu utama">
+    <a class="tab {{ request()->routeIs('pelanggan.beranda') ? 'on' : '' }}"href="{{ route('pelanggan.beranda') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>
+        </svg>Beranda
+    </a>
+
+    <a class="tab {{ request()->routeIs('pelanggan.katalog') ? 'on' : '' }}" href="{{ route('pelanggan.katalog') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Katalog
+    </a>
+
+    <a class="tab {{ request()->routeIs('custom-buket.*') ? 'on' : '' }}" href="{{ route('custom-buket.index') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>Custom
+    </a>
+
+    <a class="tab {{ request()->routeIs('pelanggan.riwayat') ? 'on' : '' }}" href="{{ route('pelanggan.riwayat') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6"/></svg>Pesanan
+    </a>
+
+    <a class="tab" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Profil
+    </a>
+</nav>
+
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

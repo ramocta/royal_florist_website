@@ -9,6 +9,7 @@ use App\Http\Controllers\admin\ProdukController;
 use App\Http\Controllers\admin\ProfilController;
 use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\pelanggan\BerandaController;
 use App\Http\Controllers\pelanggan\KatalogController;
 use App\Http\Controllers\pelanggan\CheckoutController;
 use App\Http\Controllers\pelanggan\RiwayatPesananController;
@@ -125,6 +126,8 @@ Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])
     ->prefix('pelanggan')
     ->name('pelanggan.')
     ->group(function () {
+        //beranda
+        Route::get('beranda', [BerandaController::class, 'index'])->name('beranda');
 
         // Katalog
         Route::get('katalog', [KatalogController::class, 'index'])->name('katalog');
