@@ -1,3 +1,4 @@
+```php
 <?php
 
 use App\Http\Controllers\admin\DashboardController;
@@ -53,7 +54,7 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         // Dashboard
         Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-        // Laporan Penjualan (Export PDF memakai route ini juga dengan ?format=json)
+        // Laporan Penjualan
         Route::get('laporan-penjualan', [LaporanPenjualanController::class, 'index'])->name('laporan.index');
 
         // Manajemen Staff
@@ -61,7 +62,7 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::patch('karyawan/{karyawan}/status', [KaryawanController::class, 'toggleStatus'])->name('karyawan.status');
         Route::resource('karyawan', KaryawanController::class)->except(['show']);
 
-        // Katalog Produk (route statis harus di atas {produk})
+        // Katalog Produk
         Route::get('produk', [ProdukController::class, 'index'])->name('produk.index');
         Route::get('produk/data', [ProdukController::class, 'data'])->name('produk.data');
         Route::get('produk/export', [ProdukController::class, 'export'])->name('produk.export');
@@ -71,7 +72,7 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::put('produk/{produk}', [ProdukController::class, 'update'])->name('produk.update');
         Route::delete('produk/{produk}', [ProdukController::class, 'destroy'])->name('produk.destroy');
 
-        // Rute Untuk Management Stock Produk
+        // Management Stock Produk
         Route::get('/stok', [StockController::class, 'index'])->name('stok.index');
         Route::post('/stok/{id}/adjust', [StockController::class, 'adjust'])->name('stok.adjust');
         Route::delete('/stok/{id}', [StockController::class, 'destroy'])->name('stok.destroy');
@@ -101,13 +102,8 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         // Pengaturan
         Route::get('pengaturan', [PengaturanController::class, 'index'])->name('pengaturan.index');
         Route::put('pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
-
-        // Pengaturan
-        Route::get('pengaturan', [PengaturanController::class, 'index'])->name('pengaturan.index');
-        Route::put('pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
         Route::get('pengaturan/landing', [PengaturanController::class, 'landing'])->name('pengaturan.landing');
         Route::put('pengaturan/landing', [PengaturanController::class, 'updateLanding'])->name('pengaturan.landing.update');
-
     });
 
 /*
@@ -128,14 +124,17 @@ Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])
         // Riwayat Pesanan
         Route::get('riwayat-pesanan', [RiwayatPesananController::class, 'index'])->name('riwayat');
 
-        // Detail produk (aktifkan setelah method show() dan view-nya dibuat)
-        // Route::get('produk/{produk}', [KatalogController::class, 'show'])->name('produk.show');
+        // Checkout
+        Route::get('checkout', [CheckoutController::class, 'index'])->name('checkout');
+        Route::post('checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 
+        // Detail produk
+        // Route::get('produk/{produk}', [KatalogController::class, 'show'])->name('produk.show');
     });
 
 /*
 |--------------------------------------------------------------------------
-| Custom Buket (khusus pelanggan) -> /custom-buket
+| Custom Buket (khusus pelanggan)
 |--------------------------------------------------------------------------
 */
 
@@ -143,15 +142,3 @@ Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])->group(functio
     Route::get('/custom-buket', [CustomBuketController::class, 'index'])->name('custom-buket.index');
     Route::post('/custom-buket', [CustomBuketController::class, 'store'])->name('custom-buket.store');
 });
-
-/*
-|--------------------------------------------------------------------------
-| Pelanggan Checkout
-|--------------------------------------------------------------------------
-*/
-
-Route::get('/checkout', [CheckoutController::class, 'index'])
-    ->name('checkout');
-
-Route::post('/checkout', [CheckoutController::class, 'store'])
-    ->name('checkout.store');

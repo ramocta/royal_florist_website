@@ -9,7 +9,9 @@ class CheckoutController extends Controller
 {
     public function index()
     {
-        return view('pelanggan.checkout');
+        $pelanggan = auth()->user();
+
+        return view('pelanggan.checkout', compact('pelanggan'));
     }
 
     public function store(Request $request)

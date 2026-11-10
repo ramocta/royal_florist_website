@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -247,22 +248,24 @@ button:focus-visible { outline:2px solid var(--maroon); outline-offset:2px; }
     </div>
   @endif
 
-  <form action="{{ route('checkout.store') }}" method="POST" id="checkoutForm">
+  <form action="{{ route('pelanggan.checkout.store') }}" method="POST" id="checkoutForm">
     @csrf
-    <input type="hidden" name="metode_pesanan" id="metodePesanan" value="kurir">
+
+    <input type="hidden" name="jenis_pengambilan" id="metodePesanan" value="dikirim">
+    <input type="hidden" name="metode_pembayaran" id="metodePembayaran" value="QRIS">
 
     <div class="cols">
       <div>
         <section class="card">
           <h3>Tipe Layanan Pesanan:</h3>
           <div class="types">
-            <button type="button" class="type active" data-type="kurir" aria-pressed="true">
+            <button type="button" class="type active" data-type="dikirim" aria-pressed="true">
               🚚
               <span class="txt"><b>Dikirim Kurir Florist</b><small>Wajib Bayar QRIS Sblm Diproses</small></span>
               <span class="radio"></span>
             </button>
 
-            <button type="button" class="type" data-type="ambil" aria-pressed="false">
+            <button type="button" class="type" data-type="ambil_di_toko" aria-pressed="false">
               🏪
               <span class="txt"><b>Ambil Sendiri di Toko</b><small>Bayar di Kasir Toko Saat Ambil</small></span>
               <span class="radio"></span>
@@ -275,11 +278,11 @@ button:focus-visible { outline:2px solid var(--maroon); outline-offset:2px; }
           <div class="addr">
             <div class="row">
               <span class="tag">UTAMA</span>
-              <b>Siska Amelia</b>
-              <span>(+62 812-3456-7890)</span>
+              <b>{{ $pelanggan->nama ?? '-' }}</b>
+              <span>({{ $pelanggan->nmr_telepon ?? '-' }})</span>
               <button type="button" class="ghost">Ubah Alamat</button>
             </div>
-            <p>Jl. Raya Darmo No. 45, Kecamatan Wonokromo, Kota Surabaya, Jawa Timur 60241</p>
+            <p>{{ $pelanggan->alamat ?? '-' }}</p>
             <small>Catatan: Pagar putih dekat minimarket</small>
           </div>
         </section>
@@ -339,13 +342,20 @@ document.querySelectorAll('.type').forEach(btn => {
     btn.classList.add('active');
     btn.setAttribute('aria-pressed', 'true');
 
-    const delivery = btn.dataset.type === 'kurir';
+    const delivery = btn.dataset.type === 'dikirim';
     const ship = delivery ? COURIER : 0;
 
     document.getElementById('metodePesanan').value = btn.dataset.type;
-    document.getElementById('addrCard').style.display = delivery ? '' : 'none';
+
+    document.getElementById('metodePembayaran').value =
+      delivery ? 'QRIS' : 'bayar_di_toko';
+
+    document.getElementById('addrCard').style.display =
+      delivery ? '' : 'none';
+
     document.getElementById('ship').textContent = rp(ship);
     document.getElementById('total').textContent = rp(SUBTOTAL + ship);
+
     document.getElementById('cta').textContent =
       delivery ? 'Lanjut Bayar QRIS →' : 'Lanjut Konfirmasi →';
   });
