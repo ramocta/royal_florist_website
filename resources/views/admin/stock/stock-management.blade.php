@@ -575,7 +575,7 @@
                             </td>
                             <td class="p-3 text-center space-x-1">
                                 {{-- Tombol Quick Edit Stok --}}
-                                <button type="button" onclick="openAdjustModal({{ $item->id_product }}, '{{ $item->nama_produk }}', {{ $item->stok }})" class="p-1 text-gray-500 hover:text-maroon" title="Adjust Stok">
+                                <button type="button" onclick="openAdjustModal({{ $item->id_product }}, @js($item->nama_produk), {{ $item->stok }})" class="p-1 text-gray-500 hover:text-maroon" title="Adjust Stok">
                                     {!! \App\Support\Ikon::svg('edit', 16) !!}
                                 </button>
                                 
@@ -629,7 +629,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
     function openAdjustModal(id, nama, stokLama) {
         document.getElementById('adjustModal').classList.remove('hidden');
@@ -642,4 +642,4 @@
         document.getElementById('adjustModal').classList.add('hidden');
     }
 </script>
-@endsection
+@endpush

@@ -1,4 +1,3 @@
-
 <?php
 
 use App\Http\Controllers\admin\DashboardController;
@@ -8,9 +7,12 @@ use App\Http\Controllers\admin\PelangganController;
 use App\Http\Controllers\admin\PesananController;
 use App\Http\Controllers\admin\ProdukController;
 use App\Http\Controllers\admin\ProfilController;
+use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\pelanggan\KatalogController;
 use App\Http\Controllers\pelanggan\CheckoutController;
+use App\Http\Controllers\pelanggan\RiwayatPesananController;
+use App\Http\Controllers\pelanggan\CustomBuketController;
 use App\Http\Controllers\admin\StockController;
 use App\Http\Controllers\admin\OrderProgressController;
 use App\Http\Middleware\RoleMiddleware;
@@ -98,6 +100,19 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::get('profil', [ProfilController::class, 'index'])->name('profil');
         Route::put('profil', [ProfilController::class, 'update'])->name('profil.update');
         Route::put('profil/password', [ProfilController::class, 'updatePassword'])->name('profil.password');
+        Route::post('profil/foto', [ProfilController::class, 'updatePhoto'])->name('profil.foto.update');
+        Route::delete('profil/foto', [ProfilController::class, 'deletePhoto'])->name('profil.foto.delete');
+
+        // Pengaturan
+        Route::get('pengaturan', [PengaturanController::class, 'index'])->name('pengaturan.index');
+        Route::put('pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
+
+        // Pengaturan
+        Route::get('pengaturan', [PengaturanController::class, 'index'])->name('pengaturan.index');
+        Route::put('pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
+        Route::get('pengaturan/landing', [PengaturanController::class, 'landing'])->name('pengaturan.landing');
+        Route::put('pengaturan/landing', [PengaturanController::class, 'updateLanding'])->name('pengaturan.landing.update');
+
     });
 
 /*
@@ -115,10 +130,24 @@ Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])
         Route::get('katalog', [KatalogController::class, 'index'])->name('katalog');
         Route::get('katalog/data', [KatalogController::class, 'data'])->name('katalog.data');
 
+        // Riwayat Pesanan
+        Route::get('riwayat-pesanan', [RiwayatPesananController::class, 'index'])->name('riwayat');
+
         // Detail produk (aktifkan setelah method show() dan view-nya dibuat)
         // Route::get('produk/{produk}', [KatalogController::class, 'show'])->name('produk.show');
 
     });
+
+/*
+|--------------------------------------------------------------------------
+| Custom Buket (khusus pelanggan) -> /custom-buket
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])->group(function () {
+    Route::get('/custom-buket', [CustomBuketController::class, 'index'])->name('custom-buket.index');
+    Route::post('/custom-buket', [CustomBuketController::class, 'store'])->name('custom-buket.store');
+});
 
 /*
 |--------------------------------------------------------------------------
