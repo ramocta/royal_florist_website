@@ -10,7 +10,7 @@
         ['href' => route('admin.produk.index'),    'ikon' => 'box',      'label' => 'Produk',             'aktif' => false],
         ['href' => route('admin.stok.index'),      'ikon' => 'database', 'label' => 'Stok',               'aktif' => false],
         ['href' => route('admin.karyawan.index'),  'ikon' => 'users',    'label' => 'Manajemen Staff',    'aktif' => false],
-        ['href' => '#',                            'ikon' => 'progress', 'label' => 'Manajemen Progress', 'aktif' => false],
+        ['href' => route('admin.progress.index'),  'ikon' => 'progress', 'label' => 'Manajemen Progress', 'aktif' => false],
         ['href' => '#',                            'ikon' => 'settings', 'label' => 'Pengaturan',         'aktif' => false],
     ];
 

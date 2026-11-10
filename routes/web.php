@@ -12,6 +12,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\pelanggan\KatalogController;
 use App\Http\Controllers\pelanggan\CheckoutController;
 use App\Http\Controllers\admin\StockController;
+use App\Http\Controllers\admin\OrderProgressController;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -74,6 +75,10 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::post('/stok/{id}/adjust', [StockController::class, 'adjust'])->name('stok.adjust');
         Route::delete('/stok/{id}', [StockController::class, 'destroy'])->name('stok.destroy');
 
+        //Rute Untuk Management Order Progress
+        Route::get('/progress', [OrderProgressController::class, 'index'])->name('progress.index');
+        Route::patch('/progress/{id}/status', [OrderProgressController::class, 'updateStatus'])->name('progress.updateStatus');
+
         // Manajemen Pelanggan
         Route::get('pelanggan', [PelangganController::class, 'index'])->name('pelanggan.index');
         Route::get('pelanggan/export', [PelangganController::class, 'export'])->name('pelanggan.export');
@@ -93,7 +98,6 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::get('profil', [ProfilController::class, 'index'])->name('profil');
         Route::put('profil', [ProfilController::class, 'update'])->name('profil.update');
         Route::put('profil/password', [ProfilController::class, 'updatePassword'])->name('profil.password');
-
     });
 
 /*
