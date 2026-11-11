@@ -9,11 +9,8 @@
           max-width:1100px; margin:0 auto; padding:16px 16px 104px; color:#3a1020; }
     .rw *, .rw *::before, .rw *::after { box-sizing:border-box; }
 
-    .rw-hero { position:relative; overflow:hidden; padding:20px 18px; border-radius:24px; color:#fff;
-               background:radial-gradient(circle at 80% 0%, rgba(255,255,255,.18), transparent 55%), linear-gradient(135deg, #8b2342, #531a35);
-               box-shadow:0 10px 24px rgba(83,26,53,.25); }
-    .rw-title { margin:0; font-family:"Playfair Display", Georgia, "Times New Roman", serif; font-size:28px; font-weight:700; line-height:1.15; }
-    .rw-sub { margin:6px 0 0; max-width:520px; font-size:11.5px; line-height:1.5; color:rgba(255,255,255,.85); }
+    .rw-title { margin:8px 0 0; font-family:"Playfair Display", Georgia, "Times New Roman", serif; font-size:30px; font-weight:700; line-height:1.15; color:var(--m); }
+    .rw-sub { margin:6px 0 0; font-size:12px; line-height:1.5; color:#6b5a60; }
 
     .rw-tabs { display:flex; gap:8px; margin:16px -16px; padding:4px 16px 8px; overflow-x:auto; scrollbar-width:none; }
     .rw-tabs::-webkit-scrollbar { display:none; }
@@ -34,7 +31,7 @@
     .rw-body { display:grid; gap:14px; padding:14px; }
     .rw-row { display:grid; gap:12px; }
     .rw-prod { display:flex; align-items:center; gap:12px; }
-    .rw-thumb { flex:none; width:64px; height:64px; overflow:hidden; border-radius:14px; background:linear-gradient(135deg, #f7d3de, #f2c4d2); }
+    .rw-thumb { flex:none; display:grid; place-items:center; width:64px; height:64px; overflow:hidden; border-radius:14px; background:linear-gradient(135deg, #f7d3de, #f2c4d2); }
     .rw-thumb img { display:block; width:100%; height:100%; object-fit:cover; }
     .rw-name { margin:0; font-size:13px; font-weight:800; line-height:1.3; }
     .rw-line { margin:3px 0 0; font-size:10.5px; line-height:1.4; color:#8a7078; }
@@ -74,14 +71,13 @@
 
     @media (min-width:768px) {
         .rw { padding:32px 24px 56px; }
-        .rw-hero { padding:28px 32px; }
-        .rw-title { font-size:34px; }
+        .rw-title { font-size:36px; }
         .rw-sub { font-size:13px; }
         .rw-tabs { margin:20px 0; padding:4px 2px 8px; }
         .rw-head { grid-template-columns:auto 1fr auto; gap:0 28px; padding:14px 24px; }
-        .rw-meta { grid-column:auto; grid-row:1; gap:2px 28px; font-size:12px; }
-        .rw-jenis { font-size:12px; }
-        .rw-badge { grid-row:1; font-size:11px; padding:6px 14px; }
+        .rw-jenis { grid-column:1; grid-row:1; font-size:12px; }
+        .rw-meta { grid-column:2; grid-row:1; gap:2px 28px; font-size:12px; }
+        .rw-badge { grid-column:3; grid-row:1; font-size:11px; padding:6px 14px; }
         .rw-body { padding:22px 24px 24px; }
         .rw-row { grid-template-columns:1fr auto; align-items:center; gap:16px; }
         .rw-thumb { width:80px; height:72px; }
@@ -121,10 +117,8 @@
 @endphp
 
 <div class="rw">
-    <section class="rw-hero">
-        <h1 class="rw-title">Riwayat Pesanan</h1>
-        <p class="rw-sub">Pantau status pesanan bunga Anda: diproses, dikirim, atau siap diambil di toko.</p>
-    </section>
+    <h1 class="rw-title">Riwayat Pesanan</h1>
+    <p class="rw-sub">Pantau status pesanan bunga Anda: diproses, dikirim, atau siap diambil di toko.</p>
 
     <div class="rw-tabs">
         @foreach ($tabs as $kunci => $label)
@@ -162,6 +156,7 @@
                 $baris = $riwayat->get($kunci)?->last();
                 return $baris ? \Illuminate\Support\Carbon::parse($baris->diubah_pada)->format('H:i') . ' WIB' : null;
             };
+            $ambil = ! $dikirim && $o->jadwal_pengambilan ? \Illuminate\Support\Carbon::parse($o->jadwal_pengambilan) : null;
             $estimasi = $o->estimasi_tiba ? \Illuminate\Support\Carbon::parse($o->estimasi_tiba)->format('H:i') . ' WIB' : null;
         @endphp
 
@@ -171,18 +166,21 @@
                 <span class="rw-badge rw-b-{{ $statusKelas }}">{{ $statusLabel }}</span>
                 <div class="rw-meta">
                     <span>No. Pesanan: <strong>#{{ $o->no_invoice }}</strong></span>
-                    <span>Tanggal: {{ $o->dibuat_pada->locale('id')->translatedFormat('d F Y, H:i') }} WIB</span>
+                    <span>
+                        @if ($ambil) Tanggal Ambil: {{ $ambil->locale('id')->translatedFormat('d F Y') }}
+                        @else Tanggal: {{ $o->dibuat_pada->locale('id')->translatedFormat('d F Y, H:i') }} WIB @endif
+                    </span>
                 </div>
             </div>
 
             <div class="rw-body">
                 <div class="rw-row">
                     <div class="rw-prod">
-                        <div class="rw-thumb">@if ($foto)<img src="{{ $foto }}" alt="Foto pesanan">@endif</div>
+                        <div class="rw-thumb">@if ($foto)<img src="{{ $foto }}" alt="Foto pesanan">@else<svg width="26" height="30" viewBox="0 0 26 30" aria-hidden="true"><path d="M13 29 L3 13 a11 11 0 1 1 20 0 z" fill="#c2306a"/><circle cx="13" cy="11" r="4" fill="#fff"/></svg>@endif</div>
                         <div>
                             <p class="rw-name">{{ $produk?->nama_produk ?? 'Produk tidak tersedia' }}@if ($lainnya > 0) (+{{ $lainnya }} Item lainnya)@endif</p>
                             <p class="rw-line">@if ($dikirim) Tujuan: {{ $o->alamat_tujuan ?: '-' }} @else Lokasi Ambil: Outlets Royal Florist @endif</p>
-                            <p class="rw-pay {{ $toko ? 'ok' : '' }}">Pembayaran {{ $metode[$o->metode_pembayaran] }}: {{ $bayarUi[$o->status_pembayaran] }}</p>
+                            <p class="rw-pay {{ $toko ? 'ok' : '' }}">Pembayaran {{ $metode[$o->metode_pembayaran] }}: {{ $bayarUi[$o->status_pembayaran] }}@if (! $toko && $o->status_pembayaran === 'lunas') (Verified Kasir)@endif</p>
                         </div>
                     </div>
                     <div class="rw-total">
@@ -202,7 +200,9 @@
                                     $i = $loop->index;
                                     $keadaan = ($tuntas || $i < $posisi) ? 'done' : ($i === $posisi ? 'now' : 'todo');
                                     $waktu = $jam($kunci);
-                                    if (! $waktu && $kunci === 'dalam_pengiriman' && $estimasi) $waktu = 'Estimasi ' . $estimasi;
+                                    if (! $waktu && $kunci === 'selesai') {
+                                        $waktu = $dikirim ? ($estimasi ? 'Estimasi ' . $estimasi : null) : 'Setelah diambil';
+                                    }
                                 @endphp
                                 <div class="rw-step {{ $keadaan }} {{ ($tuntas || $i <= $posisi) ? 'reach' : '' }}">
                                     <span class="rw-dot">{{ $keadaan === 'done' ? '✓' : ($keadaan === 'now' ? '' : $i + 1) }}</span>
@@ -213,7 +213,7 @@
                         </div>
                     </div>
 
-                    @if ($o->catatan_toko || ($dikirim && $o->nama_kurir) || ($dikirim && $estimasi))
+                    @if ($o->catatan_toko || ($dikirim && $o->nama_kurir) || ($dikirim && $estimasi) || $ambil)
                         <div class="rw-info">
                             <span>
                                 @if ($dikirim && $o->nama_kurir) Kurir: {{ $o->nama_kurir }} &middot; {{ $o->no_hp_kurir }} @endif
@@ -221,6 +221,7 @@
                                 @if ($o->catatan_toko) Catatan toko: {{ $o->catatan_toko }} @endif
                             </span>
                             @if ($dikirim && $estimasi) <em>Estimasi tiba {{ $estimasi }}</em> @endif
+                            @if ($ambil) <em>Ambil sebelum {{ $ambil->format('H:i') }} WIB</em> @endif
                         </div>
                     @endif
                 @endif
