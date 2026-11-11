@@ -201,7 +201,9 @@
             return { add, toast, count };
         })();
 
-        document.getElementById('cartBtn').addEventListener('click', () => { window.location.href = @json(route('pelanggan.keranjang')); });
+        document.getElementById('cartBtn').addEventListener('click', () => {
+            window.location.href = @json(route('pelanggan.keranjang'));
+        });
     </script>
     @stack('scripts')
 </body>

@@ -14,8 +14,17 @@ class Order extends Model
     const UPDATED_AT = 'diubah_pada';
 
     protected $fillable = [
-        'no_invoice', 'id_user', 'metode_pembayaran', 'status_pembayaran',
-        'status_pesanan', 'total_harga', 'jumlah_dp', 'bukti_pembayaran', 'dibayar_pada',
+        'no_invoice',
+        'id_user',
+        'metode_pembayaran',
+        'jenis_pengambilan',
+        'alamat_tujuan',
+        'status_pembayaran',
+        'status_pesanan',
+        'total_harga',
+        'jumlah_dp',
+        'bukti_pembayaran',
+        'dibayar_pada',
         'jadwal_pengambilan',
     ];
 
