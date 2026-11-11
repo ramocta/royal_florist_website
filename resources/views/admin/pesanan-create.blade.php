@@ -9,12 +9,14 @@
     // Baris item: ambil dari old() kalau validasi gagal, kalau tidak mulai dengan 1 baris kosong
     $baris = old('items', [['id_product' => '', 'jumlah' => 1]]);
 
-    $metode = ['bayar_di_toko' => 'Tunai', 'QRIS' => 'QRIS', 'transfer_bank' => 'Transfer Bank'];
+    $metode = ['bayar_di_toko' => 'Tunai', 'QRIS' => 'QRIS', 'transfer_bank' => 'Transfer Bank', 'DP' => 'DP (Uang Muka)'];
     $bayar  = ['belum_dibayar' => 'Belum Dibayar', 'proses' => 'Proses', 'lunas' => 'Lunas'];
     $status = [
         'menunggu_pembayaran'   => 'Menunggu Pembayaran',
         'menunggu_dikonfirmasi' => 'Menunggu Dikonfirmasi',
+        'dikonfirmasi'          => 'Dikonfirmasi',
         'diproses'              => 'Diproses',
+        'dalam_pengiriman'      => 'Dalam Pengiriman',
         'siap_diambil'          => 'Siap Kirim',
         'selesai'               => 'Selesai',
         'dibatalkan'            => 'Batal',
@@ -27,27 +29,6 @@
 
     <form method="POST" action="{{ route('admin.pesanan.store') }}" class="mt-6 space-y-5 rounded-2xl border border-pinkline p-6">
         @csrf
-
-        {{-- DATA PELANGGAN --}}
-        <div class="space-y-4">
-            <div>
-                <label for="nama" class="mb-1 block text-sm font-medium text-maroon">Nama Pelanggan</label>
-                <input id="nama" type="text" name="nama" value="{{ old('nama') }}" class="{{ $input }}">
-                @error('nama') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-            </div>
-
-            <div>
-                <label for="nmr_telepon" class="mb-1 block text-sm font-medium text-maroon">No. Telepon</label>
-                <input id="nmr_telepon" type="text" name="nmr_telepon" value="{{ old('nmr_telepon') }}" class="{{ $input }}">
-                @error('nmr_telepon') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-            </div>
-
-            <div>
-                <label for="alamat" class="mb-1 block text-sm font-medium text-maroon">Alamat</label>
-                <textarea id="alamat" name="alamat" rows="3" class="{{ $input }}">{{ old('alamat') }}</textarea>
-                @error('alamat') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-            </div>
-        </div>
 
         {{-- ITEM PRODUK (baris bisa ditambah/dihapus) --}}
         <div>
@@ -62,7 +43,7 @@
                                 <option value="">-- Pilih produk --</option>
                                 @foreach ($produk as $pr)
                                     <option value="{{ $pr->id_product }}" @selected(($b['id_product'] ?? '') == $pr->id_product)>
-                                        {{ $pr->nama_produk }} - Rp {{ number_format($pr->harga, 0, ',', '.') }} (stok {{ $pr->stok }})
+                                        {{ $pr->nama_produk }} - Rp {{ number_format($pr->harga, 0, ',', '.') }}@if ($pr->pakai_stok) (stok {{ $pr->stok }})@endif
                                     </option>
                                 @endforeach
                             </select>
@@ -88,6 +69,14 @@
                     @endforeach
                 </select>
                 @error('metode_pembayaran') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </div>
+
+            {{-- Muncul hanya kalau metode pembayaran = DP --}}
+            <div id="kolom-dp" class="{{ old('metode_pembayaran') === 'DP' ? '' : 'hidden' }}">
+                <label for="jumlah_dp" class="mb-1 block text-sm font-medium text-maroon">Jumlah DP (Rp)</label>
+                <input id="jumlah_dp" type="number" min="1" name="jumlah_dp" value="{{ old('jumlah_dp') }}"
+                       placeholder="Contoh: 100000" class="{{ $input }}">
+                @error('jumlah_dp') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
 
             <div>
@@ -118,7 +107,7 @@
             </div>
         </div>
 
-        <p class="text-xs text-neutral-500">Total harga dihitung otomatis dari harga produk x jumlah. Stok produk akan berkurang saat pesanan disimpan.</p>
+        <p class="text-xs text-neutral-500">Total harga dihitung otomatis dari harga produk x jumlah. Stok berkurang otomatis hanya untuk produk yang dihitung per stok. Untuk pembayaran DP, status pembayaran otomatis Proses sampai dilunasi.</p>
 
         <div class="flex gap-2">
             <button class="rounded-xl bg-maroon px-5 py-2.5 text-sm font-medium text-white hover:opacity-90">Simpan Pesanan</button>
@@ -130,6 +119,22 @@
 {{-- JavaScript kecil hanya untuk tambah/hapus baris produk --}}
 <script>
     (function () {
+        // Metode DP: tampilkan kolom jumlah DP, status pembayaran otomatis proses
+        const metode = document.getElementById('metode_pembayaran');
+        const kolomDp = document.getElementById('kolom-dp');
+        const statusBayar = document.getElementById('status_pembayaran');
+
+        function aturDp() {
+            const dp = metode.value === 'DP';
+            kolomDp.classList.toggle('hidden', !dp);
+            if (dp) statusBayar.value = 'proses';
+            statusBayar.classList.toggle('pointer-events-none', dp);
+            statusBayar.classList.toggle('opacity-60', dp);
+            statusBayar.tabIndex = dp ? -1 : 0;
+        }
+        metode.addEventListener('change', aturDp);
+        aturDp();
+
         const daftar = document.getElementById('daftar-item');
 
         // Beri nomor ulang items[0], items[1], ... supaya urut setelah tambah/hapus

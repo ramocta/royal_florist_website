@@ -12,6 +12,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\pelanggan\BerandaController;
 use App\Http\Controllers\pelanggan\KatalogController;
 use App\Http\Controllers\pelanggan\CheckoutController;
+use App\Http\Controllers\pelanggan\KeranjangController;
 use App\Http\Controllers\pelanggan\RiwayatPesananController;
 use App\Http\Controllers\pelanggan\CustomBuketController;
 use App\Http\Controllers\admin\StockController;
@@ -94,6 +95,7 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
 
         // Pesanan
         Route::get('pesanan', [PesananController::class, 'index'])->name('pesanan.index');
+        Route::get('pesanan/export', [PesananController::class, 'export'])->name('pesanan.export');
         Route::get('pesanan/create', [PesananController::class, 'create'])->name('pesanan.create');
         Route::post('pesanan', [PesananController::class, 'store'])->name('pesanan.store');
 
@@ -132,6 +134,10 @@ Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])
         // Katalog
         Route::get('katalog', [KatalogController::class, 'index'])->name('katalog');
         Route::get('katalog/data', [KatalogController::class, 'data'])->name('katalog.data');
+
+        // Keranjang (route statis 'keranjang/data' ditaruh sebelum 'keranjang')
+        Route::get('keranjang/data', [KeranjangController::class, 'data'])->name('keranjang.data');
+        Route::get('keranjang', [KeranjangController::class, 'index'])->name('keranjang');
 
         // Riwayat Pesanan
         Route::get('riwayat-pesanan', [RiwayatPesananController::class, 'index'])->name('riwayat');

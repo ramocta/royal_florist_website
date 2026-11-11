@@ -201,7 +201,7 @@
             return { add, toast, count };
         })();
 
-        document.getElementById('cartBtn').addEventListener('click', () => RF.toast(RF.count() ? `${RF.count()} item di keranjang. Halaman keranjang segera hadir.` : 'Keranjang masih kosong.'));
+        document.getElementById('cartBtn').addEventListener('click', () => { window.location.href = @json(route('pelanggan.keranjang')); });
     </script>
     @stack('scripts')
 </body>
