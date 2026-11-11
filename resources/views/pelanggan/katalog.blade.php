@@ -49,7 +49,7 @@
     @keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(46,158,77,.5); } 70%, 100% { box-shadow:0 0 0 8px rgba(46,158,77,0); } }
 
     .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:22px; }
-    .card { background:#fff; border-radius:22px; overflow:hidden; display:flex; flex-direction:column; text-decoration:none; color:inherit; cursor:pointer; box-shadow:0 4px 18px rgba(123,26,51,.07); transition:transform .2s, box-shadow .2s; }
+    .card { background:#fff; border-radius:22px; overflow:hidden; display:flex; flex-direction:column; text-decoration:none; color:inherit; box-shadow:0 4px 18px rgba(123,26,51,.07); transition:transform .2s, box-shadow .2s; }
     .media { position:relative; margin:10px; border-radius:16px; aspect-ratio:1/1; overflow:hidden; background:radial-gradient(circle at 30% 20%, #fff3f6, #f6dfe4 70%); display:grid; place-items:center; }
     .media img { width:100%; height:100%; object-fit:cover; transition:transform .4s; }
     .tag { position:absolute; top:12px; left:12px; z-index:2; background:var(--maroon); color:#fff; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:6px 12px; border-radius:99px; }
@@ -60,7 +60,12 @@
     .body { padding:6px 20px 20px; display:flex; flex-direction:column; flex:1; }
     .body h3 { margin:6px 0 4px; font-size:17px; font-weight:700; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
     .meta { margin:0; font-size:13px; color:var(--maroon-lt); font-weight:500; }
-    .buy { margin-top:auto; padding-top:14px; }
+    .buy { margin-top:auto; padding-top:14px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .add { flex:none; display:inline-flex; align-items:center; justify-content:center; gap:6px; height:40px; padding:0 14px; border:0; border-radius:99px; background:linear-gradient(135deg, var(--maroon-lt), var(--maroon-dk)); color:#fff; font:inherit; font-size:13px; font-weight:700; cursor:pointer; box-shadow:0 6px 14px rgba(83,26,53,.22); transition:transform .15s, box-shadow .15s, opacity .15s; }
+    .add:hover { transform:translateY(-1px); box-shadow:0 10px 20px rgba(83,26,53,.3); }
+    .add:active { transform:scale(.96); }
+    .add:disabled { background:#d9c9ce; box-shadow:none; cursor:not-allowed; transform:none; }
+    .add:focus-visible { outline:2px solid var(--maroon); outline-offset:3px; }
     .price { white-space:nowrap; font-size:20px; font-weight:700; color:var(--maroon); letter-spacing:-.01em; }
     @media (hover:hover) {
         .card:hover { transform:translateY(-4px); box-shadow:0 18px 40px rgba(123,26,51,.16); }
@@ -110,6 +115,8 @@
         .meta { font-size:12px; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
         .buy { padding-top:10px; }
         .price { font-size:16px; }
+        .add { height:36px; padding:0 12px; font-size:12px; }
+        .add span { display:none; }
         .pages { gap:6px; margin-top:26px; }
         .pages button { min-width:38px; height:38px; }
     }
@@ -172,7 +179,6 @@
     const PH = `<svg width="30%" viewBox="0 0 64 64" fill="none" aria-hidden="true"><circle cx="32" cy="20" r="11" fill="#e9a4b8"/><circle cx="20" cy="32" r="11" fill="#f1b9c9"/><circle cx="44" cy="32" r="11" fill="#f1b9c9"/><circle cx="32" cy="32" r="8" fill="#7b1a33" opacity=".85"/><path d="M32 44v14M32 52c-6 0-10-3-11-7M32 52c6 0 10-3 11-7" stroke="#9b2c4a" stroke-width="3" stroke-linecap="round"/></svg>`;
     window.RF_PH = PH;
 
-    const URL_DETAIL = @json(url('pelanggan/produk'));
     let lastSig = '';
 
     function renderChips() {
@@ -190,7 +196,7 @@
     function card(p) {
         const low = p.pakai_stok && p.tersedia && p.stok <= 5;
         return `
-        <a class="card ${p.tersedia ? '' : 'off'}" href="${URL_DETAIL}/${p.id}" aria-label="Lihat detail ${esc(p.nama)}">
+        <article class="card ${p.tersedia ? '' : 'off'}" data-id="${p.id}">
             <div class="media">
                 <span class="tag">${esc(p.kategori)}</span>
                 ${low ? `<span class="low">Sisa ${p.stok} tangkai</span>` : ''}
@@ -200,13 +206,22 @@
             <div class="body">
                 <h3>${esc(p.nama)}</h3>
                 <p class="meta">${esc(p.sub || p.kategori)}</p>
-                <div class="buy"><span class="price">${rupiah(p.harga)}</span></div>
+                <div class="buy">
+                    <span class="price">${rupiah(p.harga)}</span>
+                    <button type="button" class="add" data-add="${p.id}" ${p.tersedia ? '' : 'disabled'} aria-label="Tambah ${esc(p.nama)} ke keranjang">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+                        <span>${p.tersedia ? 'Keranjang' : 'Habis'}</span>
+                    </button>
+                </div>
             </div>
-        </a>`;
+        </article>`;
     }
+
+    const PRODUK = {};   // id -> data produk yang sedang tampil (untuk cek stok)
 
     function render(j) {
         const pg = j.pagination;
+        j.items.forEach(p => { PRODUK[p.id] = p; });
         const filtered = state.q || state.category;
         $('#grid').innerHTML = j.items.length ? j.items.map(card).join('') : `
             <div class="empty">
@@ -235,6 +250,20 @@
         }
     }
     const reload = () => { lastSig = ''; load(true); };
+
+    // Tombol "Keranjang" di kartu produk
+    $('#grid').addEventListener('click', e => {
+        const btn = e.target.closest('[data-add]');
+        if (!btn || btn.disabled) return;
+        const p = PRODUK[btn.dataset.add];
+        if (!p || !p.tersedia) return;
+
+        const card = btn.closest('.card');
+        const src = card.querySelector('.media img, .media svg');
+        const max = p.pakai_stok ? p.stok : Infinity;   // produk per-stok dibatasi jumlah stok
+
+        if (RF.add(p.id, max, src)) RF.toast(p.nama + ' ditambahkan ke keranjang.');
+    });
 
     $('#chips').addEventListener('click', e => {
         const b = e.target.closest('[data-cat]'); if (!b) return;

@@ -15,7 +15,7 @@ class Order extends Model
 
     protected $fillable = [
         'no_invoice', 'id_user', 'metode_pembayaran', 'status_pembayaran',
-        'status_pesanan', 'total_harga', 'bukti_pembayaran', 'dibayar_pada',
+        'status_pesanan', 'total_harga', 'jumlah_dp', 'bukti_pembayaran', 'dibayar_pada',
         'jadwal_pengambilan',
     ];
 
@@ -32,6 +32,12 @@ class Order extends Model
         return $this->belongsTo(User::class, 'id_user', 'id_user');
     }
 
+    // Data pelanggan di menu Pelanggan (nyambung lewat id_user, sama seperti Pelanggan::orders())
+    public function pelanggan(): BelongsTo
+    {
+        return $this->belongsTo(Pelanggan::class, 'id_user', 'id_user');
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class, 'id_order', 'id_order');
@@ -40,5 +46,26 @@ class Order extends Model
     public function statusHistory(): HasMany
     {
         return $this->hasMany(OrderStatusHistory::class, 'id_order', 'id_order');
+    }
+
+    // Data pelanggan untuk tabel daftar pesanan. Pesanan yang dibuat admin di toko tidak punya id_user, tampil "-".
+    public function getNamaPelangganAttribute(): string
+    {
+        return $this->pelanggan->nama ?? $this->user->nama ?? '-';
+    }
+
+    public function getEmailPelangganAttribute(): string
+    {
+        return $this->pelanggan->email ?? $this->user->email ?? '-';
+    }
+
+    public function getKontakPelangganAttribute(): string
+    {
+        return $this->pelanggan->kontak ?? $this->user->nmr_telepon ?? '-';
+    }
+
+    public function getKategoriPelangganAttribute(): ?string
+    {
+        return $this->pelanggan->kategori ?? null;
     }
 }

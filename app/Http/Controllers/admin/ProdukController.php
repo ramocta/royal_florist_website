@@ -7,9 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Subcategory;
+use App\Support\FotoProduk;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -44,7 +44,7 @@ class ProdukController extends Controller
         $data = $this->validated($request);
 
         if ($request->hasFile('foto_produk')) {
-            $data['foto_produk'] = $request->file('foto_produk')->store('products', 'public');
+            $data['foto_produk'] = FotoProduk::simpan($request->file('foto_produk'));
         }
 
         Product::create($data);
@@ -57,10 +57,8 @@ class ProdukController extends Controller
         $data = $this->validated($request);
 
         if ($request->hasFile('foto_produk')) {
-            if ($produk->foto_produk) {
-                Storage::disk('public')->delete($produk->foto_produk);
-            }
-            $data['foto_produk'] = $request->file('foto_produk')->store('products', 'public');
+            FotoProduk::hapus($produk->foto_produk);
+            $data['foto_produk'] = FotoProduk::simpan($request->file('foto_produk'));
         }
 
         $produk->update($data);
@@ -78,9 +76,7 @@ class ProdukController extends Controller
             ], 409);
         }
 
-        if ($produk->foto_produk) {
-            Storage::disk('public')->delete($produk->foto_produk);
-        }
+        FotoProduk::hapus($produk->foto_produk);
 
         return response()->json(['message' => 'Produk berhasil dihapus.']);
     }

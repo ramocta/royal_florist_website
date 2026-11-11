@@ -10,11 +10,16 @@ use App\Http\Controllers\admin\ProdukController;
 use App\Http\Controllers\admin\ProfilController;
 use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\pelanggan\BerandaController;
 use App\Http\Controllers\pelanggan\KatalogController;
+use App\Http\Controllers\pelanggan\pembayaranController;
+use App\Http\Controllers\pelanggan\ProdukDetailController;
 use App\Http\Controllers\pelanggan\CheckoutController;
+use App\Http\Controllers\pelanggan\KeranjangController;
 use App\Http\Controllers\pelanggan\RiwayatPesananController;
 use App\Http\Controllers\pelanggan\CustomBuketController;
 use App\Http\Controllers\admin\StockController;
+use App\Http\Controllers\admin\OrderProgressController;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -77,6 +82,10 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::post('/stok/{id}/adjust', [StockController::class, 'adjust'])->name('stok.adjust');
         Route::delete('/stok/{id}', [StockController::class, 'destroy'])->name('stok.destroy');
 
+        //Rute Untuk Management Order Progress
+        Route::get('/progress', [OrderProgressController::class, 'index'])->name('progress.index');
+        Route::patch('/progress/{id}/status', [OrderProgressController::class, 'updateStatus'])->name('progress.updateStatus');
+
         // Manajemen Pelanggan
         Route::get('pelanggan', [PelangganController::class, 'index'])->name('pelanggan.index');
         Route::get('pelanggan/export', [PelangganController::class, 'export'])->name('pelanggan.export');
@@ -89,6 +98,7 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
 
         // Pesanan
         Route::get('pesanan', [PesananController::class, 'index'])->name('pesanan.index');
+        Route::get('pesanan/export', [PesananController::class, 'export'])->name('pesanan.export');
         Route::get('pesanan/create', [PesananController::class, 'create'])->name('pesanan.create');
         Route::post('pesanan', [PesananController::class, 'store'])->name('pesanan.store');
 
@@ -116,10 +126,23 @@ Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])
     ->prefix('pelanggan')
     ->name('pelanggan.')
     ->group(function () {
+        //beranda
+        Route::get('beranda', [BerandaController::class, 'index'])->name('beranda');
 
         // Katalog
         Route::get('katalog', [KatalogController::class, 'index'])->name('katalog');
         Route::get('katalog/data', [KatalogController::class, 'data'])->name('katalog.data');
+
+        //detail pesanan
+        Route::get('produk/{produk}', [ProdukDetailController::class, 'show'])->name('produk.show');
+        Route::post('produk/{produk}/beli', [ProdukDetailController::class, 'beliLangsung'])->name('produk.beli');
+        //pembayaran
+        Route::get('pembayaran/{order}', [PembayaranController::class, 'show'])->name('pembayaran.show');
+        Route::post('pembayaran/{order}', [PembayaranController::class, 'kirim'])->name('pembayaran.kirim');
+
+        // Keranjang (route statis 'keranjang/data' ditaruh sebelum 'keranjang')
+        Route::get('keranjang/data', [KeranjangController::class, 'data'])->name('keranjang.data');
+        Route::get('keranjang', [KeranjangController::class, 'index'])->name('keranjang');
 
         // Riwayat Pesanan
         Route::get('riwayat-pesanan', [RiwayatPesananController::class, 'index'])->name('riwayat');

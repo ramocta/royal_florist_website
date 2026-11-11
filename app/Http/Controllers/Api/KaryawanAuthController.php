@@ -14,8 +14,8 @@ use Illuminate\Validation\ValidationException;
  */
 class KaryawanAuthController extends Controller
 {
-    // Role yang boleh login di aplikasi mobile
-    private const ROLE_DIIZINKAN = ['karyawan', 'admin'];
+    // Hanya role ini yang boleh login di aplikasi mobile (admin & pelanggan ditolak)
+    private const ROLE_DIIZINKAN = ['karyawan'];
 
     public function login(Request $request)
     {
@@ -38,13 +38,15 @@ class KaryawanAuthController extends Controller
             ]);
         }
 
-        if (! in_array($user->role, self::ROLE_DIIZINKAN, true)) {
+        // Role dibaca dari kolom users.role di database
+        $role = strtolower(trim((string) $user->role));
+        if (! in_array($role, self::ROLE_DIIZINKAN, true)) {
             throw ValidationException::withMessages([
-                'email' => ['Akun ini tidak dapat login di aplikasi karyawan.'],
+                'email' => ['Akun ini bukan akun karyawan. Aplikasi ini khusus karyawan.'],
             ]);
         }
 
-        if ($user->status !== 'aktif') {
+        if (strtolower(trim((string) $user->status)) !== 'aktif') {
             throw ValidationException::withMessages([
                 'email' => ['Akun Anda nonaktif. Hubungi admin.'],
             ]);
