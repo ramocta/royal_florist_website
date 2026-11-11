@@ -114,7 +114,7 @@
             <p class="k-total" id="kTotal">Rp 0</p>
 
             <a id="kCheckout" class="k-checkout" aria-disabled="true"
-               href="{{ route('checkout') }}">
+               href="{{ route('pelanggan.checkout') }}">
                 Lanjut ke Checkout &#9654;
             </a>
         </div>

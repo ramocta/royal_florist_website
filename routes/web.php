@@ -1,4 +1,3 @@
-```php
 <?php
 
 use App\Http\Controllers\admin\DashboardController;
@@ -18,6 +17,7 @@ use App\Http\Controllers\pelanggan\CheckoutController;
 use App\Http\Controllers\pelanggan\KeranjangController;
 use App\Http\Controllers\pelanggan\RiwayatPesananController;
 use App\Http\Controllers\pelanggan\CustomBuketController;
+use App\Http\Controllers\pelanggan\AlamatPengirimanController;
 use App\Http\Controllers\admin\StockController;
 use App\Http\Controllers\admin\OrderProgressController;
 use App\Http\Middleware\RoleMiddleware;
@@ -150,6 +150,19 @@ Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])
         // Checkout
         Route::get('checkout', [CheckoutController::class, 'index'])->name('checkout');
         Route::post('checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+
+        // CRUD Alamat Pengiriman
+        Route::post('alamat-pengiriman', [AlamatPengirimanController::class, 'store'])
+            ->name('alamat-pengiriman.store');
+
+        Route::put('alamat-pengiriman/{id}', [AlamatPengirimanController::class, 'update'])
+            ->name('alamat-pengiriman.update');
+
+        Route::delete('alamat-pengiriman/{id}', [AlamatPengirimanController::class, 'destroy'])
+            ->name('alamat-pengiriman.destroy');
+
+        Route::patch('alamat-pengiriman/{id}/utama', [AlamatPengirimanController::class, 'jadikanUtama'])
+            ->name('alamat-pengiriman.utama');
 
         // Detail produk
         // Route::get('produk/{produk}', [KatalogController::class, 'show'])->name('produk.show');
