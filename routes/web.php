@@ -11,6 +11,8 @@ use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\pelanggan\BerandaController;
 use App\Http\Controllers\pelanggan\KatalogController;
+use App\Http\Controllers\pelanggan\pembayaranController;
+use App\Http\Controllers\pelanggan\ProdukDetailController;
 use App\Http\Controllers\pelanggan\CheckoutController;
 use App\Http\Controllers\pelanggan\KeranjangController;
 use App\Http\Controllers\pelanggan\RiwayatPesananController;
@@ -134,6 +136,13 @@ Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])
         // Katalog
         Route::get('katalog', [KatalogController::class, 'index'])->name('katalog');
         Route::get('katalog/data', [KatalogController::class, 'data'])->name('katalog.data');
+
+        //detail pesanan
+        Route::get('produk/{produk}', [ProdukDetailController::class, 'show'])->name('produk.show');
+        Route::post('produk/{produk}/beli', [ProdukDetailController::class, 'beliLangsung'])->name('produk.beli');
+        //pembayaran
+        Route::get('pembayaran/{order}', [PembayaranController::class, 'show'])->name('pembayaran.show');
+        Route::post('pembayaran/{order}', [PembayaranController::class, 'kirim'])->name('pembayaran.kirim');
 
         // Keranjang (route statis 'keranjang/data' ditaruh sebelum 'keranjang')
         Route::get('keranjang/data', [KeranjangController::class, 'data'])->name('keranjang.data');
