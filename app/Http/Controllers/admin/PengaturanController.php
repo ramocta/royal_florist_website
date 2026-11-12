@@ -72,6 +72,10 @@ class PengaturanController extends Controller
             'toko_jam_senin_sabtu' => 'required|string|max:50',
             'toko_jam_minggu'      => 'required|string|max:50',
             'toko_buka'            => 'nullable|boolean',
+            // Rekening transfer bank. Boleh dikosongkan: selama kosong, pelanggan tidak ditawari Transfer Bank di checkout.
+            'bank_nama'            => 'nullable|string|max:50',
+            'bank_rekening'        => ['nullable', 'string', 'max:30', 'regex:/^[0-9\s\-]+$/'],
+            'bank_atas_nama'       => 'nullable|string|max:100',
         ];
     }
 
@@ -98,6 +102,7 @@ class PengaturanController extends Controller
             ],
             'string'   => ':attribute harus berupa teks.',
             'regex'    => 'Format :attribute tidak valid (hanya angka, spasi, +, -, dan tanda kurung).',
+            'bank_rekening.regex' => 'Nomor rekening hanya boleh berisi angka, spasi, dan tanda hubung (-).',
             'image'    => ':attribute harus berupa gambar.',
             'mimes'    => ':attribute harus berformat JPG atau PNG.',
         ];
@@ -112,6 +117,9 @@ class PengaturanController extends Controller
             'toko_alamat'          => 'Alamat toko',
             'toko_jam_senin_sabtu' => 'Jam operasional Senin-Sabtu',
             'toko_jam_minggu'      => 'Jam operasional Minggu',
+            'bank_nama'            => 'Nama bank',
+            'bank_rekening'        => 'Nomor rekening',
+            'bank_atas_nama'       => 'Nama pemilik rekening',
             'hero_judul'           => 'Judul utama',
             'hero_deskripsi'       => 'Deskripsi banner',
             'hero_tombol_teks'     => 'Teks tombol',

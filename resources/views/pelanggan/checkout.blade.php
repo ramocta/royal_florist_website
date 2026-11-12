@@ -63,6 +63,7 @@
   border:2px solid var(--maroon);
   background:var(--blush);
 }
+.checkout-content .type:disabled { opacity:.5;cursor:not-allowed; }
 .checkout-content .type b { display:block; }
 .checkout-content .type small { color:#7a5a62;font-size:10.5px; }
 .checkout-content .type .txt { flex:1; }
@@ -225,6 +226,10 @@
 @endpush
 
 @section('content')
+@php
+  // Transfer Bank hanya bisa dipilih kalau admin sudah mengisi rekening toko; selain itu bawaannya QRIS
+  $pilihBayar = (old('metode_pembayaran') === 'transfer_bank' && $transferTersedia) ? 'transfer_bank' : 'QRIS';
+@endphp
 <div class="checkout-content">
 
   <h1>Pilih Metode Pengambilan / Pengiriman</h1>
@@ -247,7 +252,7 @@
   <form action="{{ route('pelanggan.checkout.store') }}" method="POST" id="checkoutForm">
     @csrf
     <input type="hidden" name="jenis_pengambilan" id="metodePesanan" value="dikirim">
-    <input type="hidden" name="metode_pembayaran" id="metodePembayaran" value="QRIS">
+    <input type="hidden" name="metode_pembayaran" id="metodePembayaran" value="{{ $pilihBayar }}">
     <input type="hidden" name="cart_items" id="cartItemsInput">
   </form>
 
@@ -259,7 +264,7 @@
         <div class="types">
           <button type="button" class="type active" data-type="dikirim" aria-pressed="true">
             🚚
-            <span class="txt"><b>Dikirim Kurir Florist</b><small>Wajib Bayar QRIS Sebelum Diproses</small></span>
+            <span class="txt"><b>Dikirim Kurir Florist</b><small>Wajib Bayar Sebelum Diproses</small></span>
             <span class="radio"></span>
           </button>
 
@@ -382,21 +387,45 @@
         </section>
       @endif
 
-      <section class="card">
-        <h3>💳 Ketentuan Pembayaran Pesanan</h3>
-        <div class="note">
-          <b>Sistem Pengiriman:</b>
-          <span>Bunga akan <b>mulai dirangkai &amp; dikirim</b> setelah Anda melakukan scan <b>QRIS</b> &amp; mengunggah bukti bayar.</span>
+      <section class="card" id="payCard">
+        <h3>💳 Metode Pembayaran</h3>
+
+        {{-- Pesanan dikirim: pelanggan memilih QRIS atau Transfer Bank. Cara bayarnya tampil di halaman berikutnya. --}}
+        <div id="payOnline">
+          <div class="note">
+            <b>Sistem Pengiriman:</b>
+            <span>Bunga akan <b>mulai dirangkai &amp; dikirim</b> setelah Anda membayar &amp; mengunggah bukti pembayaran.</span>
+          </div>
+
+          <div class="types">
+            <button type="button" class="type pay-opt {{ $pilihBayar === 'QRIS' ? 'active' : '' }}"
+                    data-pay="QRIS" aria-pressed="{{ $pilihBayar === 'QRIS' ? 'true' : 'false' }}">
+              📱
+              <span class="txt"><b>QRIS</b><small>GoPay, OVO, DANA, ShopeePay, m-banking</small></span>
+              <span class="radio"></span>
+            </button>
+
+            <button type="button" class="type pay-opt {{ $pilihBayar === 'transfer_bank' ? 'active' : '' }}"
+                    data-pay="transfer_bank" aria-pressed="{{ $pilihBayar === 'transfer_bank' ? 'true' : 'false' }}"
+                    @disabled(! $transferTersedia)>
+              🏦
+              <span class="txt"><b>Transfer Bank</b><small>{{ $transferTersedia ? 'Transfer ke rekening toko' : 'Belum tersedia' }}</small></span>
+              <span class="radio"></span>
+            </button>
+          </div>
         </div>
-        <div class="pay">
-          <span class="ico">📱</span>
-          <div style="flex:1">
-            <h4>Pembayaran QRIS Instan (Upload Bukti)</h4>
-            <div class="meta">
-              <span>Mendukung GoPay, OVO, ShopeePay, Dana, BCA Mobile, Livin, BRImo, dll</span>
-              <b>Bebas Biaya Admin</b>
+
+        {{-- Ambil di toko: tidak ada pilihan, pembayaran dilakukan di kasir --}}
+        <div id="payToko" style="display:none">
+          <div class="pay">
+            <span class="ico">🏪</span>
+            <div style="flex:1">
+              <h4>Bayar di Kasir Toko</h4>
+              <div class="meta">
+                <span>Pembayaran dilakukan langsung di kasir saat Anda mengambil pesanan.</span>
+                <b>Tanpa Biaya Kurir</b>
+              </div>
             </div>
-            <span class="badge">✓ Otomatis Di-Scan Kasir</span>
           </div>
         </div>
       </section>
@@ -447,6 +476,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   let subtotalProduk = 0;
   let cartItems = {};
   let jenisPengambilan = 'dikirim';
+  let metodeBayar = @json($pilihBayar);   // 'QRIS' atau 'transfer_bank' (berlaku kalau pesanan dikirim)
 
   const rp = angka => 'Rp ' + Number(angka).toLocaleString('id-ID');
 
@@ -456,12 +486,39 @@ document.addEventListener('DOMContentLoaded', async function () {
   const totalElement = document.getElementById('total');
   const cta = document.getElementById('cta');
   const hint = document.getElementById('checkoutHint');
+  const payOnline = document.getElementById('payOnline');
+  const payToko = document.getElementById('payToko');
 
   function updateTotal() {
     const ongkir = jenisPengambilan === 'dikirim' ? COURIER : 0;
     shipElement.textContent = rp(ongkir);
     totalElement.textContent = rp(subtotalProduk + ongkir);
     subtotalElement.textContent = rp(subtotalProduk);
+  }
+
+  // Satu tempat untuk menyelaraskan: kartu metode bayar, isian tersembunyi yang dikirim ke server, teks tombol, dan petunjuk
+  function refreshBayar() {
+    const delivery = jenisPengambilan === 'dikirim';
+
+    payOnline.style.display = delivery ? '' : 'none';
+    payToko.style.display = delivery ? 'none' : '';
+    document.getElementById('metodePembayaran').value = delivery ? metodeBayar : 'bayar_di_toko';
+
+    let label, petunjuk;
+    if (!delivery) {
+      label = 'Lanjut Konfirmasi →';
+      petunjuk = 'Pesanan akan dikonfirmasi untuk pembayaran langsung di toko.';
+    } else if (metodeBayar === 'transfer_bank') {
+      label = 'Lanjut Bayar Transfer →';
+      petunjuk = 'Halaman berikutnya akan menampilkan nomor rekening toko dan tombol unggah bukti transfer.';
+    } else {
+      label = 'Lanjut Bayar QRIS →';
+      petunjuk = 'Halaman berikutnya akan menampilkan kode QRIS dan tombol unggah bukti pembayaran.';
+    }
+
+    // Jangan menimpa tulisan "Memuat Keranjang..." / "Keranjang Kosong" selama tombol masih nonaktif
+    if (!cta.disabled) cta.textContent = label;
+    hint.textContent = petunjuk;
   }
 
   function showEmptyCart(message) {
@@ -568,9 +625,7 @@ document.addEventListener('DOMContentLoaded', async function () {
       updateTotal();
 
       cta.disabled = false;
-      cta.textContent = 'Lanjut Bayar QRIS →';
-
-      hint.textContent = 'Periksa kembali produk dan alamat pesanan sebelum melanjutkan.';
+      refreshBayar();
 
     } catch (error) {
       console.error('Checkout error:', error);
@@ -578,10 +633,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
   }
 
-  // Pilihan metode pengambilan
-  document.querySelectorAll('.checkout-content .type').forEach(btn => {
+  // Pilihan jenis pengambilan (dikirim / ambil di toko)
+  document.querySelectorAll('.checkout-content .type[data-type]').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.checkout-content .type').forEach(button => {
+      document.querySelectorAll('.checkout-content .type[data-type]').forEach(button => {
         button.classList.remove('active');
         button.setAttribute('aria-pressed', 'false');
       });
@@ -594,8 +649,6 @@ document.addEventListener('DOMContentLoaded', async function () {
       const delivery = jenisPengambilan === 'dikirim';
 
       document.getElementById('metodePesanan').value = jenisPengambilan;
-      document.getElementById('metodePembayaran').value =
-        delivery ? 'QRIS' : 'bayar_di_toko';
 
       document.getElementById('addrCard').style.display =
         delivery ? '' : 'none';
@@ -606,14 +659,22 @@ document.addEventListener('DOMContentLoaded', async function () {
       });
 
       updateTotal();
+      refreshBayar();
+    });
+  });
 
-      cta.textContent = delivery
-        ? 'Lanjut Bayar QRIS →'
-        : 'Lanjut Konfirmasi →';
+  // Pilihan metode pembayaran (QRIS / Transfer Bank), hanya tampil untuk pesanan dikirim
+  document.querySelectorAll('.checkout-content .pay-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      metodeBayar = btn.dataset.pay;
 
-      hint.textContent = delivery
-        ? 'Halaman berikutnya akan menampilkan QRIS dan tombol unggah bukti transaksi.'
-        : 'Pesanan akan dikonfirmasi untuk pembayaran langsung di toko.';
+      document.querySelectorAll('.checkout-content .pay-opt').forEach(button => {
+        const aktif = button === btn;
+        button.classList.toggle('active', aktif);
+        button.setAttribute('aria-pressed', aktif ? 'true' : 'false');
+      });
+
+      refreshBayar();
     });
   });
 
@@ -662,6 +723,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
   });
 
+  refreshBayar();
   await loadCart();
 });
 </script>

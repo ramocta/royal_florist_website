@@ -53,6 +53,27 @@ class Setting extends Model
     }
 
     /**
+     * Rekening tujuan Transfer Bank (diisi admin di Pengaturan > Profil Toko).
+     * Mengembalikan null kalau nama bank atau nomor rekening belum diisi; saat itu
+     * Transfer Bank tidak ditawarkan di checkout, jadi pelanggan tidak buntu di halaman pembayaran.
+     */
+    public static function rekeningBank(): ?array
+    {
+        $nama = trim((string) self::ambil('bank_nama'));
+        $no   = trim((string) self::ambil('bank_rekening'));
+
+        if ($nama === '' || $no === '') {
+            return null;
+        }
+
+        return [
+            'nama'      => $nama,
+            'rekening'  => $no,
+            'atas_nama' => trim((string) self::ambil('bank_atas_nama')),
+        ];
+    }
+
+    /**
      * Alamat (URL) gambar yang diunggah admin, misalnya banner.
      * Kalau belum pernah diunggah, ATAU file-nya tidak ada di komputer ini
      * (folder storage tidak ikut Git), dipakai gambar bawaan di folder public/.

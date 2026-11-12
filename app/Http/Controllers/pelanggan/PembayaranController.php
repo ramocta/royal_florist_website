@@ -15,7 +15,10 @@ class PembayaranController extends Controller
     // Batas waktu pembayaran sejak pesanan dibuat
     private const BATAS_JAM = 24;
 
-    // Halaman pembayaran QRIS + form unggah bukti
+    // Metode bayar yang ditangani halaman ini. Metode dipilih pelanggan di halaman checkout.
+    private const LABEL_METODE = ['QRIS' => 'QRIS', 'transfer_bank' => 'Transfer Bank'];
+
+    // Halaman pembayaran: QRIS atau rekening transfer bank (sesuai pilihan di checkout) + form unggah bukti
     public function show(Request $request, Order $order)
     {
         $this->pastikanMilikSendiri($request, $order);
@@ -31,8 +34,10 @@ class PembayaranController extends Controller
             'kadaluarsa' => now()->greaterThanOrEqualTo($batas),
             // Dikirim sebagai detik tersisa (bukan jam server), supaya hitung mundur tidak terpengaruh jam HP pengguna
             'sisaDetik'  => max(0, now()->diffInSeconds($batas, false)),
+            'metode'     => $order->metode_pembayaran,
             'qris'       => $this->urlQris(),
             'nmid'       => Setting::ambil('qris_nmid'),
+            'bank'       => Setting::rekeningBank(),   // null = rekening belum diisi admin
         ]);
     }
 
@@ -89,7 +94,8 @@ class PembayaranController extends Controller
                 ]);
 
                 // Data tambahan dari form dicatat di riwayat status, supaya kasir bisa membacanya saat memverifikasi
-                $catatan = "Bukti pembayaran QRIS diunggah pelanggan. Pengirim: {$data['nama_pengirim']}. Aplikasi: {$data['aplikasi']}.";
+                $metode  = self::LABEL_METODE[$baru->metode_pembayaran];
+                $catatan = "Bukti pembayaran {$metode} diunggah pelanggan. Pengirim: {$data['nama_pengirim']}. Bank/aplikasi: {$data['aplikasi']}.";
                 if (! empty($data['catatan'])) {
                     $catatan .= " Catatan ke kasir: {$data['catatan']}";
                 }
@@ -123,11 +129,11 @@ class PembayaranController extends Controller
         abort_unless($order->id_user === $request->user()->id_user, 404);
     }
 
-    // Halaman ini hanya untuk pesanan QRIS yang belum dibayar dan belum dibatalkan
+    // Halaman ini hanya untuk pesanan QRIS / transfer bank yang belum dibayar dan belum dibatalkan
     private function tolakJikaTidakBisaBayar(Order $order)
     {
-        if ($order->metode_pembayaran !== 'QRIS') {
-            return redirect()->route('pelanggan.riwayat')->with('error', 'Pesanan ini tidak dibayar lewat QRIS.');
+        if (! array_key_exists($order->metode_pembayaran, self::LABEL_METODE)) {
+            return redirect()->route('pelanggan.riwayat')->with('error', 'Pesanan ini tidak dibayar lewat QRIS atau transfer bank.');
         }
         if ($order->status_pesanan === 'dibatalkan') {
             return redirect()->route('pelanggan.riwayat')->with('error', 'Pesanan ini sudah dibatalkan.');

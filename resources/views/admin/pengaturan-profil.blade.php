@@ -81,6 +81,32 @@
                 </div>
 
                 <hr class="my-6 border-pinkline">
+
+                {{-- Rekening tujuan Transfer Bank. Tampil di halaman pembayaran pelanggan yang memilih Transfer Bank. --}}
+                <h2 class="font-display text-xl font-semibold text-maroon">Rekening Transfer Bank</h2>
+                <p class="text-xs text-neutral-500">Pelanggan yang memilih Transfer Bank di checkout akan melihat rekening ini. Kosongkan nama bank atau nomor rekening untuk menyembunyikan pilihan Transfer Bank.</p>
+
+                <div class="mt-4 space-y-4">
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label for="bank_nama" class="{{ $label }}">Nama Bank</label>
+                            <input id="bank_nama" type="text" name="bank_nama" value="{{ old('bank_nama', $s('bank_nama')) }}" maxlength="50" placeholder="Contoh: BCA" class="{{ $input }}">
+                            @error('bank_nama') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label for="bank_rekening" class="{{ $label }}">Nomor Rekening</label>
+                            <input id="bank_rekening" type="text" name="bank_rekening" value="{{ old('bank_rekening', $s('bank_rekening')) }}" maxlength="30" inputmode="numeric" class="{{ $input }}">
+                            @error('bank_rekening') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                    <div>
+                        <label for="bank_atas_nama" class="{{ $label }}">Atas Nama</label>
+                        <input id="bank_atas_nama" type="text" name="bank_atas_nama" value="{{ old('bank_atas_nama', $s('bank_atas_nama')) }}" maxlength="100" class="{{ $input }}">
+                        @error('bank_atas_nama') <p class="{{ $err }}">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                <hr class="my-6 border-pinkline">
                 <div class="flex items-center justify-between">
                     {{-- Batal: muat ulang halaman, jadi perubahan yang belum disimpan dibuang --}}
                     <a href="{{ route('admin.pengaturan.index') }}"

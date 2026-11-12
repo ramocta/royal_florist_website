@@ -2,6 +2,10 @@
     $namaToko = \App\Models\Setting::ambil('toko_nama');
     $wa = preg_replace('/\D/', '', \App\Models\Setting::ambil('toko_whatsapp') ?? '');
     if (str_starts_with($wa, '0')) { $wa = '62' . substr($wa, 1); }
+
+    // Metode bayar sudah dipilih pelanggan di halaman checkout; halaman ini hanya menampilkan cara bayarnya
+    $transfer = $metode === 'transfer_bank';
+    $adaAtasNama = $bank && $bank['atas_nama'] !== '';
 @endphp
 @extends('layouts.pelanggan')
 
@@ -35,6 +39,14 @@
     .nmid { margin:12px 0 2px; text-align:center; font-size:12px; font-weight:700; color:var(--ink); }
     .scan { margin:0; text-align:center; font-size:11.5px; color:var(--muted); }
 
+    .rek-box { display:grid; gap:2px; padding:16px 18px; border:2px solid var(--maroon); border-radius:18px; background:#fff; }
+    .rek-box small { margin-top:10px; font-size:11px; color:var(--muted); }
+    .rek-box small:first-child { margin-top:0; }
+    .rek-bank, .rek-an { font-size:15px; color:var(--ink); }
+    .rek-no { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .rek-no span { font-size:24px; font-weight:700; letter-spacing:.06em; color:var(--maroon); font-variant-numeric:tabular-nums; word-break:break-all; }
+    .rek-no button { flex-shrink:0; padding:7px 16px; border:1.5px solid var(--maroon); border-radius:99px; background:#fff; color:var(--maroon); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+    .rek-no button:hover { background:var(--blush); }
     .total { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:18px; padding-top:16px; border-top:1px solid var(--blush-dk); font-size:12.5px; color:var(--muted); }
     .total b { font-size:24px; color:var(--maroon); }
     .catatan { margin:12px 0 0; padding:10px 14px; border-radius:12px; background:var(--blush); font-size:12px; font-weight:600; color:var(--maroon-dk); }
@@ -77,7 +89,7 @@
 
     <div class="judul">
         <h1>Pembayaran Pesanan #{{ $order->no_invoice }}</h1>
-        <p>Selesaikan pembayaran &amp; unggah bukti transfer agar bunga dapat segera diproses</p>
+        <p>Selesaikan pembayaran lewat <b>{{ $transfer ? 'Transfer Bank' : 'QRIS' }}</b> &amp; unggah bukti pembayaran agar bunga dapat segera diproses</p>
     </div>
 
     @if (session('error'))
@@ -85,7 +97,7 @@
     @endif
 
     <div class="grid-bayar">
-        {{-- ===== KIRI: QRIS ===== --}}
+        {{-- ===== KIRI: QRIS atau TRANSFER BANK (sesuai pilihan di checkout) ===== --}}
         <div class="kartu">
             <div class="waktu {{ $kadaluarsa ? 'habis' : '' }}">
                 <span>&#9200; Batas Waktu Pembayaran:</span>
@@ -93,23 +105,53 @@
             </div>
 
             <div class="isi">
-                <div class="qris-top">
-                    <span><b>QRIS</b> &nbsp;|&nbsp; Quick Response Code Indonesian Standard</span>
-                    <strong>{{ $namaToko }}</strong>
-                </div>
+                @if ($transfer)
+                    <div class="qris-top">
+                        <span><b>Transfer Bank</b> &nbsp;|&nbsp; Transfer manual ke rekening toko</span>
+                        <strong>{{ $namaToko }}</strong>
+                    </div>
 
-                <div class="qr-box">
-                    @if ($qris)
-                        <img src="{{ $qris }}" alt="Kode QRIS {{ $namaToko }}">
+                    @if ($bank)
+                        <div class="rek-box">
+                            <small>Bank Tujuan</small>
+                            <b class="rek-bank">{{ $bank['nama'] }}</b>
+
+                            <small>Nomor Rekening</small>
+                            <div class="rek-no">
+                                <span id="noRek" data-nomor="{{ preg_replace('/\D/', '', $bank['rekening']) }}">{{ $bank['rekening'] }}</span>
+                                <button type="button" id="salinRek">Salin</button>
+                            </div>
+
+                            @if ($adaAtasNama)
+                                <small>Atas Nama</small>
+                                <b class="rek-an">{{ $bank['atas_nama'] }}</b>
+                            @endif
+                        </div>
                     @else
-                        <p class="qr-kosong">Kode QRIS belum diatur oleh toko.<br>Silakan hubungi kami lewat
-                            <a href="https://wa.me/{{ $wa }}" target="_blank" rel="noopener" style="color:var(--maroon);font-weight:700;">WhatsApp</a>.</p>
+                        <div class="qr-box">
+                            <p class="qr-kosong">Nomor rekening belum diatur oleh toko.<br>Silakan hubungi kami lewat
+                                <a href="https://wa.me/{{ $wa }}" target="_blank" rel="noopener" style="color:var(--maroon);font-weight:700;">WhatsApp</a>.</p>
+                        </div>
                     @endif
-                </div>
-                @if ($nmid)
-                    <p class="nmid">NMID: {{ $nmid }}</p>
+                @else
+                    <div class="qris-top">
+                        <span><b>QRIS</b> &nbsp;|&nbsp; Quick Response Code Indonesian Standard</span>
+                        <strong>{{ $namaToko }}</strong>
+                    </div>
+
+                    <div class="qr-box">
+                        @if ($qris)
+                            <img src="{{ $qris }}" alt="Kode QRIS {{ $namaToko }}">
+                        @else
+                            <p class="qr-kosong">Kode QRIS belum diatur oleh toko.<br>Silakan hubungi kami lewat
+                                <a href="https://wa.me/{{ $wa }}" target="_blank" rel="noopener" style="color:var(--maroon);font-weight:700;">WhatsApp</a>.</p>
+                        @endif
+                    </div>
+                    @if ($nmid)
+                        <p class="nmid">NMID: {{ $nmid }}</p>
+                    @endif
+                    <p class="scan">Scan menggunakan GoPay, OVO, ShopeePay, Dana, BCA, Livin, dll.</p>
                 @endif
-                <p class="scan">Scan menggunakan GoPay, OVO, ShopeePay, Dana, BCA, Livin, dll.</p>
 
                 <div class="total">
                     <span>Total Tagihan:</span>
@@ -118,13 +160,23 @@
                 <p class="catatan">&#128204; Catatan: Pastikan nominal transfer sesuai sampai digit terakhir.</p>
 
                 <div class="cara">
-                    <h3>Cara Pembayaran QRIS:</h3>
-                    <ol>
-                        <li>Buka aplikasi e-wallet / mobile banking pilihan Anda.</li>
-                        <li>Pilih menu <b>Scan / Bayar</b> dan arahkan kamera ke kode QR di atas.</li>
-                        <li>Periksa nama penerima (<b>{{ $namaToko }}</b>) dan konfirmasi pembayaran.</li>
-                        <li>Simpan tangkapan layar (screenshot) bukti pembayaran Anda.</li>
-                    </ol>
+                    @if ($transfer)
+                        <h3>Cara Pembayaran Transfer Bank:</h3>
+                        <ol>
+                            <li>Buka aplikasi mobile banking / internet banking, atau datang ke ATM.</li>
+                            <li>Pilih menu <b>Transfer</b>{{ $bank ? ' ke ' . $bank['nama'] : '' }}, lalu masukkan nomor rekening di atas.</li>
+                            <li>Masukkan nominal sesuai total tagihan{{ $adaAtasNama ? ', dan periksa nama penerima (' . $bank['atas_nama'] . ')' : '' }}.</li>
+                            <li>Simpan struk atau tangkapan layar (screenshot) bukti transfer Anda.</li>
+                        </ol>
+                    @else
+                        <h3>Cara Pembayaran QRIS:</h3>
+                        <ol>
+                            <li>Buka aplikasi e-wallet / mobile banking pilihan Anda.</li>
+                            <li>Pilih menu <b>Scan / Bayar</b> dan arahkan kamera ke kode QR di atas.</li>
+                            <li>Periksa nama penerima (<b>{{ $namaToko }}</b>) dan konfirmasi pembayaran.</li>
+                            <li>Simpan tangkapan layar (screenshot) bukti pembayaran Anda.</li>
+                        </ol>
+                    @endif
                 </div>
             </div>
         </div>
@@ -145,14 +197,20 @@
                 <form method="POST" action="{{ route('pelanggan.pembayaran.kirim', $order) }}" enctype="multipart/form-data" id="formBukti">
                     @csrf
 
-                    <label class="lbl" for="nama_pengirim">Nama Pengirim / Pembayar:</label>
+                    <label class="lbl" for="nama_pengirim">{{ $transfer ? 'Nama Pemilik Rekening Pengirim:' : 'Nama Pengirim / Pembayar:' }}</label>
                     <input type="text" id="nama_pengirim" name="nama_pengirim" value="{{ old('nama_pengirim', auth()->user()->nama) }}" maxlength="100">
                     @error('nama_pengirim') <p class="err">{{ $message }}</p> @enderror
 
-                    <label class="lbl" for="aplikasi">Metode / Aplikasi yang Digunakan:</label>
-                    <input type="text" id="aplikasi" name="aplikasi" value="{{ old('aplikasi') }}" maxlength="50" list="daftar-aplikasi" placeholder="Contoh: GoPay / BCA Mobile">
+                    {{-- Metode bayar sudah dipilih di checkout. Isian ini hanya mencatat bank/aplikasi asal dana, supaya kasir mudah mencocokkan. --}}
+                    <label class="lbl" for="aplikasi">{{ $transfer ? 'Bank Pengirim:' : 'Aplikasi yang Digunakan:' }}</label>
+                    <input type="text" id="aplikasi" name="aplikasi" value="{{ old('aplikasi') }}" maxlength="50" list="daftar-aplikasi" placeholder="{{ $transfer ? 'Contoh: BCA / BRI / Mandiri' : 'Contoh: GoPay / BCA Mobile' }}">
+                    @php
+                        $daftarAplikasi = $transfer
+                            ? ['BCA', 'BRI', 'BNI', 'Mandiri', 'BSI', 'CIMB Niaga', 'Permata', 'Bank Jago', 'SeaBank']
+                            : ['GoPay', 'OVO', 'DANA', 'ShopeePay', 'LinkAja', 'BCA Mobile', 'Livin\' by Mandiri', 'BRImo', 'BNI Mobile'];
+                    @endphp
                     <datalist id="daftar-aplikasi">
-                        @foreach (['GoPay', 'OVO', 'DANA', 'ShopeePay', 'LinkAja', 'BCA Mobile', 'Livin\' by Mandiri', 'BRImo', 'BNI Mobile'] as $app)
+                        @foreach ($daftarAplikasi as $app)
                             <option value="{{ $app }}">
                         @endforeach
                     </datalist>
@@ -222,6 +280,28 @@
         drop.addEventListener('drop', function (ev) {
             if (ev.dataTransfer.files.length) { input.files = ev.dataTransfer.files; tampilkanNama(); }
         });
+
+        // ---- Tombol "Salin" nomor rekening (hanya ada di pembayaran transfer bank) ----
+        var tombolSalin = document.getElementById('salinRek');
+        if (tombolSalin) {
+            tombolSalin.addEventListener('click', function () {
+                var nomor = document.getElementById('noRek').dataset.nomor;
+                function sudah() {
+                    tombolSalin.textContent = 'Tersalin \u2713';
+                    setTimeout(function () { tombolSalin.textContent = 'Salin'; }, 2000);
+                }
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(nomor).then(sudah);
+                } else {
+                    // Cadangan untuk halaman tanpa HTTPS (misalnya saat dites lewat alamat IP)
+                    var t = document.createElement('textarea');
+                    t.value = nomor; t.style.position = 'fixed'; t.style.opacity = '0';
+                    document.body.appendChild(t); t.select();
+                    try { document.execCommand('copy'); sudah(); } catch (e) {}
+                    document.body.removeChild(t);
+                }
+            });
+        }
 
         // Cegah kirim ganda kalau tombol ditekan berkali-kali
         document.getElementById('formBukti').addEventListener('submit', function () {
