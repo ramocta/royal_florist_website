@@ -33,10 +33,6 @@
                     </div>
                 </div>
 
-                <a href="{{ route('admin.pelanggan.edit', $pelanggan) }}"
-                   class="rounded-xl bg-maroon px-5 py-2.5 text-sm font-medium text-white hover:opacity-90">
-                    Edit Pelanggan
-                </a>
             </div>
 
             <div class="border-t border-pinkline text-sm" style="display: flex; flex-wrap: wrap; gap: 20px 64px; margin-top: 24px; padding-top: 20px;">
@@ -46,11 +42,11 @@
                 </div>
                 <div>
                     <p class="text-xs text-neutral-500">Kontak</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ $pelanggan->kontak }}</p>
+                    <p class="mt-1 font-semibold text-neutral-900">{{ $pelanggan->nmr_telepon }}</p>
                 </div>
                 <div>
-                    <p class="text-xs text-neutral-500">Terdaftar Sejak</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ $terdaftar->locale('id')->translatedFormat('d F Y') }}</p>
+                    <p class="text-xs text-neutral-500">Alamat</p>
+                    <p class="mt-1 font-semibold text-neutral-900">{{ $pelanggan->alamat ?: '-' }}</p>
                 </div>
             </div>
         </div>

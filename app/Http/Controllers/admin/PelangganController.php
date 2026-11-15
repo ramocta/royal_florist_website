@@ -3,100 +3,79 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Pelanggan;
+use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class PelangganController extends Controller
 {
+    /** Akun yang terdaftar kurang dari sekian hari dianggap pelanggan Baru, selebihnya Lama. */
+    private const HARI_BARU = 30;
+
     public function index(Request $request)
     {
-        Pelanggan::sinkronDariUser();
+        $this->perbaruiKategori();
 
         return view('admin.pelanggan-index', [
             'pelanggans' => $this->filter($request)->paginate(10)->withQueryString(),
             'q'     => trim((string) $request->query('q', '')),
             'kat'   => (string) $request->query('kategori', ''),
-            'total' => Pelanggan::count(),
-            'lama'  => Pelanggan::where('kategori', 'Lama')->count(),
-            'baru'  => Pelanggan::where('kategori', 'Baru')->count(),
+            'total' => $this->pelanggan()->count(),
+            'lama'  => $this->pelanggan()->where('kategori_pelanggan', 'Lama')->count(),
+            'baru'  => $this->pelanggan()->where('kategori_pelanggan', 'Baru')->count(),
         ]);
     }
 
     public function export(Request $request)
     {
-        Pelanggan::sinkronDariUser();
+        $this->perbaruiKategori();
 
         $rows = $this->filter($request)->get();
 
         return response()->streamDownload(function () use ($rows) {
             echo "\xEF\xBB\xBF"; // BOM agar Excel membaca huruf dengan benar
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['No', 'Nama', 'Email', 'Kontak', 'Kategori', 'Terdaftar']);
+            fputcsv($out, ['No', 'Nama', 'Email', 'Kontak', 'Alamat', 'Kategori']);
             foreach ($rows as $i => $p) {
-                fputcsv($out, [$i + 1, $p->nama, $p->email, $p->kontak, $p->kategori, $p->created_at->format('Y-m-d')]);
+                fputcsv($out, [$i + 1, $p->nama, $p->email, $p->nmr_telepon, $p->alamat, $p->kategori_pelanggan]);
             }
             fclose($out);
         }, 'data-pelanggan.csv', ['Content-Type' => 'text/csv']);
     }
 
-    public function create()
+    public function show(User $pelanggan)
     {
-        return view('admin.pelanggan-create');
-    }
+        abort_unless($pelanggan->role === 'pelanggan', 404);
 
-    public function store(Request $request)
-    {
-        Pelanggan::create($request->validate([
-            'nama'   => ['required', 'string', 'max:100'],
-            'email'  => ['required', 'email', 'max:100', 'unique:pelanggan,email'],
-            'kontak' => ['required', 'string', 'max:30'],
-        ], $this->pesan(), $this->label()));
+        $this->perbaruiKategori();
+        $pelanggan->refresh();
 
-        return redirect()->route('admin.pelanggan.index')
-            ->with('success', 'Pelanggan berhasil ditambahkan.');
-    }
-
-    public function show(Pelanggan $pelanggan)
-    {
         $aktif = $pelanggan->orders()->where('status_pesanan', '!=', 'dibatalkan');
 
         return view('admin.pelanggan-show', [
             'pelanggan'    => $pelanggan,
-            'kategori'     => $pelanggan->kategori,
-            'terdaftar'    => $pelanggan->created_at,
+            'kategori'     => $pelanggan->kategori_pelanggan,
+            'terdaftar'    => \Illuminate\Support\Carbon::parse($pelanggan->created_at),
             'totalPesanan' => (clone $aktif)->count(),
             'totalBelanja' => (float) (clone $aktif)->sum('total_harga'),
         ]);
     }
 
-    public function edit(Pelanggan $pelanggan)
+    public function destroy(User $pelanggan)
     {
-        return view('admin.pelanggan-edit', compact('pelanggan'));
-    }
+        abort_unless($pelanggan->role === 'pelanggan', 404);
 
-    public function update(Request $request, Pelanggan $pelanggan)
-    {
-        $pelanggan->update($request->validate([
-            'nama'   => ['required', 'string', 'max:100'],
-            'email'  => ['required', 'email', 'max:100', Rule::unique('pelanggan', 'email')->ignore($pelanggan->id)],
-            'kontak' => ['required', 'string', 'max:30'],
-        ], $this->pesan(), $this->label()));
-
-        return redirect()->route('admin.pelanggan.show', $pelanggan)
-            ->with('success', 'Data pelanggan berhasil diperbarui.');
-    }
-
-    public function destroy(Pelanggan $pelanggan)
-    {
-        if ($pelanggan->id_user) {
-            return back()->with('error', 'Pelanggan ini memiliki akun terdaftar sehingga tidak dapat dihapus.');
+        if ($pelanggan->orders()->exists()) {
+            return back()->with('error', 'Pelanggan tidak dapat dihapus karena sudah memiliki pesanan.');
         }
 
-        $pelanggan->delete();
+        try {
+            $pelanggan->delete();
+        } catch (QueryException) {
+            return back()->with('error', 'Pelanggan tidak dapat dihapus karena masih terhubung dengan data lain.');
+        }
 
-        return redirect()->route('admin.pelanggan.index')
-            ->with('success', 'Pelanggan berhasil dihapus.');
+        return redirect()->route('admin.pelanggan.index')->with('success', 'Pelanggan berhasil dihapus.');
     }
 
     private function filter(Request $request)
@@ -104,28 +83,30 @@ class PelangganController extends Controller
         $q = trim((string) $request->query('q', ''));
         $kat = (string) $request->query('kategori', '');
 
-        return Pelanggan::query()
+        return $this->pelanggan()
             ->when($q !== '', fn ($query) => $query->where(function ($w) use ($q) {
                 $w->where('nama', 'like', "%{$q}%")
                   ->orWhere('email', 'like', "%{$q}%")
-                  ->orWhere('kontak', 'like', "%{$q}%");
+                  ->orWhere('nmr_telepon', 'like', "%{$q}%");
             }))
-            ->when(in_array($kat, ['Baru', 'Lama'], true), fn ($query) => $query->where('kategori', $kat))
-            ->orderBy('id');
+            ->when(in_array($kat, ['Baru', 'Lama'], true), fn ($query) => $query->where('kategori_pelanggan', $kat))
+            ->orderBy('id_user');
     }
 
-    private function pesan(): array
+    /** Samakan kolom kategori_pelanggan dengan tanggal terdaftar (created_at). */
+    private function perbaruiKategori(): void
     {
-        return [
-            'required' => ':attribute wajib diisi.',
-            'max'      => ':attribute maksimal :max karakter.',
-            'email'    => 'Format email tidak valid.',
-            'unique'   => ':attribute sudah terdaftar.',
-        ];
+        $batas = now()->subDays(self::HARI_BARU);
+
+        $this->pelanggan()->where('created_at', '<', $batas)->where('kategori_pelanggan', '!=', 'Lama')
+            ->update(['kategori_pelanggan' => 'Lama']);
+
+        $this->pelanggan()->where('created_at', '>=', $batas)->where('kategori_pelanggan', '!=', 'Baru')
+            ->update(['kategori_pelanggan' => 'Baru']);
     }
 
-    private function label(): array
+    private function pelanggan()
     {
-        return ['nama' => 'Nama', 'email' => 'Email', 'kontak' => 'Kontak'];
+        return User::where('role', 'pelanggan');
     }
 }
