@@ -57,7 +57,7 @@ class AlamatPengirimanController extends Controller
         $alamat = AlamatPengiriman::where('id_user', auth()->id())
             ->findOrFail($id);
 
-        $jadikanUtama = $request->boolean('is_utama');
+        $jadikanUtama = $request->boolean('is_utama') || $alamat->is_utama;
 
         DB::transaction(function () use ($alamat, $validated, $jadikanUtama) {
             if ($jadikanUtama) {

@@ -25,6 +25,9 @@ class UserResource extends JsonResource
             'nmr_telepon' => $this->nmr_telepon,
             'alamat' => $this->alamat,
             'role' => $this->role,
+            'foto_profil_url' => $this->foto_profil 
+                ? asset('storage/' . $this->foto_profil) 
+                : null,
         ];
     }
 }
