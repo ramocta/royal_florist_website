@@ -1,14 +1,19 @@
 <?php
 
+// Use For Admin
 use App\Http\Controllers\admin\DashboardController;
 use App\Http\Controllers\admin\KaryawanController;
 use App\Http\Controllers\admin\LaporanPenjualanController;
 use App\Http\Controllers\admin\PelangganController;
 use App\Http\Controllers\admin\PesananController;
 use App\Http\Controllers\admin\ProdukController;
+use App\Http\Controllers\admin\StockController;
+use App\Http\Controllers\admin\OrderProgressController;
 use App\Http\Controllers\admin\ProfilController;
 use App\Http\Controllers\Admin\PengaturanController;
 use App\Http\Controllers\AuthController;
+
+// Use For Pelanggan
 use App\Http\Controllers\pelanggan\BerandaController;
 use App\Http\Controllers\pelanggan\KatalogController;
 use App\Http\Controllers\pelanggan\pembayaranController;
@@ -18,8 +23,7 @@ use App\Http\Controllers\pelanggan\KeranjangController;
 use App\Http\Controllers\pelanggan\RiwayatPesananController;
 use App\Http\Controllers\pelanggan\CustomBuketController;
 use App\Http\Controllers\pelanggan\AlamatPengirimanController;
-use App\Http\Controllers\admin\StockController;
-use App\Http\Controllers\admin\OrderProgressController;
+use App\Http\Controllers\pelanggan\ProfileController;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -166,6 +170,10 @@ Route::middleware(['auth', RoleMiddleware::class . ':pelanggan'])
 
         // Detail produk
         // Route::get('produk/{produk}', [KatalogController::class, 'show'])->name('produk.show');
+        Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
+        Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+        Route::delete('/profile/photo', [ProfileController::class, 'deleteProfile'])->name('profile.deletePhoto');
     });
 
 /*
