@@ -31,10 +31,7 @@ class Setting extends Model
         'toko_jam_minggu'      => 'Minggu (09:00 - 17:00)',
         'toko_buka'            => '1',
 
-        // Landing page: banner (hero) dan footer
-        'hero_judul'           => 'Abadikan Momen Berharga Dengan Sentuhan Rangkaian Bunga Elegan',
-        'hero_deskripsi'       => 'Pilihan terbaik untuk Buket Bunga Segar, Papan Ucapan Acara, dan Seserahan Hantaran.',
-        'hero_tombol_teks'     => 'Pesan Sekarang',
+        // Landing page: footer (banner kini ada di tabel banners)
         'footer_deskripsi'     => 'Toko bunga dan florist profesional untuk berbagai momen spesial. Menyediakan rangkaian bunga segar berkualitas.',
     ];
 

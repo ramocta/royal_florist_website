@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\pelanggan;
 
 use App\Http\Controllers\Controller;
+use App\Models\Banner;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,8 @@ class BerandaController extends Controller
     public function index()
     {
         return view('pelanggan.beranda', [
+            // Hanya banner aktif yang filenya benar-benar ada
+            'banners'  => Banner::tampil()->get()->map->url->filter()->values()->all(),
             'kategori' => $this->kategori(),
             'terlaris' => $this->terlaris(),
         ]);

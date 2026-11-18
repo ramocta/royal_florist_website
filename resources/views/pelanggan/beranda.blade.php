@@ -54,14 +54,20 @@
     .btn.solid:hover { background:var(--maroon-dk); }
     .btn.solid.kecil { padding:10px 12px; font-size:12.5px; }
 
-    /* Hero */
-    .hero { display:grid; grid-template-columns:1.2fr 1fr; align-items:center; gap:28px; padding:50px 54px; border-radius:26px; color:#fff; background:linear-gradient(135deg, #6a1730, #8a2543); box-shadow:0 18px 40px rgba(83,26,53,.22); overflow:hidden; }
+    /* Banner slider: isinya murni gambar desain UMKM (tanpa teks tambahan), diatur admin di Pengaturan > Manajemen Landing Page */
+    .slider { position:relative; border-radius:26px; overflow:hidden; background:var(--blush-dk); box-shadow:0 18px 40px rgba(83,26,53,.22); }
+    .slides { display:flex; transition:transform .6s ease; touch-action:pan-y; }
+    .slide { flex:0 0 100%; aspect-ratio:8 / 3; }
+    .slide img { width:100%; height:100%; object-fit:cover; display:block; user-select:none; -webkit-user-drag:none; }
+    .slide.kosong { display:grid; place-items:center; background:linear-gradient(135deg, #6a1730, #8a2543); }
+    .s-btn { position:absolute; top:50%; transform:translateY(-50%); width:42px; height:42px; border-radius:50%; border:0; background:rgba(255,255,255,.85); color:var(--maroon); font-size:22px; line-height:1; cursor:pointer; display:grid; place-items:center; box-shadow:0 4px 14px rgba(0,0,0,.18); }
+    .s-btn:hover { background:#fff; }
+    .s-btn.prev { left:14px; } .s-btn.next { right:14px; }
+    .dots { position:absolute; left:0; right:0; bottom:12px; display:flex; justify-content:center; gap:8px; }
+    .dot { width:9px; height:9px; padding:0; border:0; border-radius:99px; background:rgba(255,255,255,.6); cursor:pointer; transition:.25s; }
+    .dot.on { width:26px; background:#fff; }
+
     .hero-badge { margin:0; font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:#f4b6c6; }
-    .hero h1 { margin:14px 0 0; font-family:'Playfair Display', serif; font-size:40px; line-height:1.2; }
-    .hero .desc { margin:14px 0 0; max-width:460px; font-size:14.5px; line-height:1.65; color:rgba(255,255,255,.86); }
-    .hero-btns { display:flex; flex-wrap:wrap; gap:12px; margin-top:28px; }
-    .hero-img { display:grid; place-items:center; min-height:160px; }
-    .hero-img img { max-width:100%; max-height:330px; object-fit:contain; border-radius:18px; }
 
     /* Keunggulan */
     .fitur-row { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-top:22px; }
@@ -104,10 +110,10 @@
 
     @media (max-width:860px) {
         .sec { margin-top:40px; }
-        .hero { grid-template-columns:1fr; padding:30px 22px; gap:18px; }
-        .hero h1 { font-size:28px; }
-        .hero-img { order:-1; min-height:0; }
-        .hero-img img { max-height:210px; }
+        .slider { border-radius:18px; }
+        .slide { aspect-ratio:16 / 9; }
+        .s-btn { width:34px; height:34px; font-size:18px; }
+        .s-btn.prev { left:8px; } .s-btn.next { right:8px; }
         .fitur-row { grid-template-columns:1fr; }
         .kat-grid { grid-template-columns:1fr; }
         .pc-grid { grid-template-columns:repeat(2, 1fr); gap:12px; }
@@ -125,21 +131,29 @@
         <div class="closed-bar">Toko sedang tutup. Pesanan baru belum dapat diterima saat ini.</div>
     @endif
 
-    {{-- ===== HERO: judul, deskripsi, gambar, dan teks tombol diatur admin di Pengaturan > Manajemen Landing Page ===== --}}
-    <section class="hero">
-        <div>
-            <p class="hero-badge">Premium Florist &amp; Hantaran Pernikahan</p>
-            <h1>{{ $s('hero_judul') }}</h1>
-            <p class="desc">{{ $s('hero_deskripsi') }}</p>
-            <div class="hero-btns">
-                <a class="btn white" href="{{ route('pelanggan.katalog') }}">{{ $s('hero_tombol_teks') }}</a>
-                <a class="btn ghost" href="{{ route('custom-buket.index') }}">Custom Buket &rsaquo;</a>
+    {{-- ===== BANNER SLIDER: gambar-gambar yang diunggah admin (lebih dari satu = bergeser otomatis) ===== --}}
+    <section class="slider" id="slider" aria-roledescription="carousel" aria-label="Banner {{ $s('toko_nama') }}">
+        <div class="slides" id="slides">
+            @forelse ($banners as $i => $url)
+                <div class="slide" role="group" aria-label="Banner {{ $i + 1 }} dari {{ count($banners) }}">
+                    <img src="{{ $url }}" alt="Banner {{ $s('toko_nama') }} {{ $i + 1 }}" draggable="false"
+                         @if ($i > 0) loading="lazy" @endif>
+                </div>
+            @empty
+                {{-- Belum ada banner diunggah: tampil latar polos supaya halaman tidak kosong --}}
+                <div class="slide kosong">{!! $placeholder !!}</div>
+            @endforelse
+        </div>
+
+        @if (count($banners) > 1)
+            <button type="button" class="s-btn prev" id="sPrev" aria-label="Banner sebelumnya">&lsaquo;</button>
+            <button type="button" class="s-btn next" id="sNext" aria-label="Banner berikutnya">&rsaquo;</button>
+            <div class="dots" id="dots">
+                @foreach ($banners as $i => $url)
+                    <button type="button" class="dot {{ $i === 0 ? 'on' : '' }}" data-i="{{ $i }}" aria-label="Ke banner {{ $i + 1 }}"></button>
+                @endforeach
             </div>
-        </div>
-        <div class="hero-img">
-            {{-- Kalau admin belum mengunggah gambar, dipakai public/images/hero-default.png --}}
-            <img src="{{ \App\Models\Setting::gambar('hero_gambar', 'images/hero-default.png') }}" alt="Banner {{ $s('toko_nama') }}" onerror="this.style.display='none'">
-        </div>
+        @endif
     </section>
 
     {{-- ===== KEUNGGULAN ===== --}}
@@ -258,6 +272,43 @@
 
 @push('scripts')
 <script>
+    // Banner slider: otomatis geser tiap 3 detik, bisa klik panah/titik, dan digeser jari di HP
+    (function () {
+        var wadah = document.getElementById('slides');
+        var jumlah = wadah ? wadah.children.length : 0;
+        if (jumlah < 2) return;
+
+        var i = 0, timer = null, mulaiX = null;
+        var titik = document.querySelectorAll('#dots .dot');
+
+        function ke(n) {
+            i = (n + jumlah) % jumlah;
+            wadah.style.transform = 'translateX(' + (-i * 100) + '%)';
+            titik.forEach(function (t, k) { t.classList.toggle('on', k === i); });
+        }
+        function mulai() { stop(); timer = setInterval(function () { ke(i + 1); }, 3000); }
+        function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+        document.getElementById('sPrev').addEventListener('click', function () { ke(i - 1); mulai(); });
+        document.getElementById('sNext').addEventListener('click', function () { ke(i + 1); mulai(); });
+        titik.forEach(function (t) { t.addEventListener('click', function () { ke(Number(t.dataset.i)); mulai(); }); });
+
+        var slider = document.getElementById('slider');
+        slider.addEventListener('touchstart', function (e) { mulaiX = e.touches[0].clientX; stop(); }, { passive: true });
+        slider.addEventListener('touchend', function (e) {
+            if (mulaiX !== null) {
+                var selisih = e.changedTouches[0].clientX - mulaiX;
+                if (Math.abs(selisih) > 40) { ke(selisih < 0 ? i + 1 : i - 1); }
+            }
+            mulaiX = null; mulai();
+        });
+        slider.addEventListener('touchcancel', function () { mulaiX = null; mulai(); });
+        // Tab tidak terlihat -> jeda supaya tidak "loncat" saat kembali
+        document.addEventListener('visibilitychange', function () { document.hidden ? stop() : mulai(); });
+
+        mulai();
+    })();
+
     // Tombol "+ Tambah Keranjang": memakai keranjang bawaan layout (window.RF, disimpan di browser)
     document.querySelectorAll('[data-add]').forEach(function (tombol) {
         tombol.addEventListener('click', function () {

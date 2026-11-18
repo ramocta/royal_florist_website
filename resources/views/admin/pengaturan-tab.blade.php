@@ -1,12 +1,13 @@
 {{--
-  Tab di atas halaman Pengaturan. Dipakai bersama oleh Profil Toko dan Manajemen Landing Page.
-  Variabel: $aktif = 'profil' atau 'landing'
+  Tab di atas halaman Pengaturan. Dipakai bersama oleh Profil Toko, Manajemen Landing Page, dan Pembayaran QRIS.
+  Variabel: $aktif = 'profil', 'landing', atau 'qris'
   Tab yang route-nya belum dibuat tampil redup dan tidak bisa diklik, jadi tidak error.
 --}}
 @php
     $tabs = [
         'profil'  => ['Profil Toko', 'admin.pengaturan.index'],
         'landing' => ['Manajemen Landing Page', 'admin.pengaturan.landing'],
+        'qris'    => ['Pembayaran QRIS', 'admin.pengaturan.qris'],
     ];
 @endphp
 <div class="flex flex-wrap items-center gap-3">

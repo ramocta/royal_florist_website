@@ -118,6 +118,12 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::put('pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
         Route::get('pengaturan/landing', [PengaturanController::class, 'landing'])->name('pengaturan.landing');
         Route::put('pengaturan/landing', [PengaturanController::class, 'updateLanding'])->name('pengaturan.landing.update');
+        Route::post('pengaturan/banner', [PengaturanController::class, 'tambahBanner'])->name('pengaturan.banner.tambah');
+        Route::patch('pengaturan/banner/{banner}/toggle', [PengaturanController::class, 'toggleBanner'])->name('pengaturan.banner.toggle');
+        Route::patch('pengaturan/banner/{banner}/geser', [PengaturanController::class, 'geserBanner'])->name('pengaturan.banner.geser');
+        Route::delete('pengaturan/banner/{banner}', [PengaturanController::class, 'hapusBanner'])->name('pengaturan.banner.hapus');
+        Route::get('pengaturan/qris', [PengaturanController::class, 'qris'])->name('pengaturan.qris');
+        Route::put('pengaturan/qris', [PengaturanController::class, 'updateQris'])->name('pengaturan.qris.update');
     });
 
 /*

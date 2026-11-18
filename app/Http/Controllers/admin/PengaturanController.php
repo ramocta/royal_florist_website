@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Banner;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -33,31 +34,120 @@ class PengaturanController extends Controller
 
     public function landing()
     {
-        return view('admin.pengaturan-landing');
+        return view('admin.pengaturan-landing', [
+            'banners' => Banner::orderBy('urutan')->orderBy('id_banner')->get(),
+        ]);
     }
 
     public function updateLanding(Request $request)
     {
+        // Banner diatur lewat tombol sendiri (unggah / hapus / aktif-nonaktif / urutan), jadi di sini hanya footer
         $data = $request->validate($this->aturanLanding(), $this->pesan(), $this->label());
 
-        // Gambar bukan teks, jadi dikeluarkan dulu dari $data dan diproses terpisah
-        unset($data['hero_gambar']);
-        $gambarLama = Setting::ambil('hero_gambar');
+        Setting::simpan($data);
 
-        if ($request->hasFile('hero_gambar')) {
-            // Disimpan di storage/app/public/landing/ dengan nama acak (aman dari nama file yang aneh atau bentrok).
-            // Yang masuk database hanya alamat file-nya, misalnya "landing/AbC123.png"
-            $data['hero_gambar'] = $request->file('hero_gambar')->store('landing', 'public');
+        return redirect()->route('admin.pengaturan.landing')->with('success', 'Landing page diperbarui.');
+    }
+
+    /* ---------- Banner slider (boleh lebih dari satu) ---------- */
+
+    public function tambahBanner(Request $request)
+    {
+        $request->validate([
+            'banner'   => 'required|array|min:1|max:10',
+            // max dalam KB (2048 = 2 MB per gambar). SVG tidak diizinkan karena bisa memuat skrip.
+            'banner.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
+        ], [
+            'banner.required' => 'Pilih minimal satu gambar banner.',
+            'banner.max'      => 'Maksimal 10 gambar sekali unggah.',
+            'banner.*.image'  => 'Berkas harus berupa gambar.',
+            'banner.*.mimes'  => 'Banner harus berformat JPG, PNG, atau WEBP.',
+            'banner.*.max'    => 'Ukuran tiap banner maksimal 2 MB.',
+        ]);
+
+        // Banner baru ditaruh paling belakang
+        $urutan = (int) Banner::max('urutan');
+
+        foreach ($request->file('banner') as $berkas) {
+            Banner::create([
+                'gambar'    => $berkas->store('banners', 'public'),  // nama file diacak Laravel
+                'urutan'    => ++$urutan,
+                'is_active' => true,
+            ]);
+        }
+
+        return redirect()->route('admin.pengaturan.landing')
+            ->with('success', count($request->file('banner')) . ' banner ditambahkan.');
+    }
+
+    public function toggleBanner(Banner $banner)
+    {
+        $banner->update(['is_active' => ! $banner->is_active]);
+
+        return redirect()->route('admin.pengaturan.landing')
+            ->with('success', $banner->is_active ? 'Banner diaktifkan.' : 'Banner disembunyikan dari beranda.');
+    }
+
+    // Geser banner ke atas / ke bawah dengan menukar nilai urutan dengan tetangganya
+    public function geserBanner(Request $request, Banner $banner)
+    {
+        $arah = $request->input('arah') === 'naik' ? 'naik' : 'turun';
+
+        $semua = Banner::orderBy('urutan')->orderBy('id_banner')->get()->values();
+        $i = $semua->search(fn ($b) => $b->id_banner === $banner->id_banner);
+        $j = $arah === 'naik' ? $i - 1 : $i + 1;
+
+        if ($j >= 0 && $j < $semua->count()) {
+            $semua->splice($i, 1);
+            $semua->splice($j, 0, [$banner]);
+            // Tulis ulang urutan 1..n supaya selalu rapi, tidak bergantung nilai lama
+            foreach ($semua as $n => $b) {
+                if ($b->urutan !== $n + 1) {
+                    $b->update(['urutan' => $n + 1]);
+                }
+            }
+        }
+
+        return redirect()->route('admin.pengaturan.landing');
+    }
+
+    public function hapusBanner(Banner $banner)
+    {
+        $berkas = $banner->gambar;
+        $banner->delete();
+        Storage::disk('public')->delete($berkas);
+
+        return redirect()->route('admin.pengaturan.landing')->with('success', 'Banner dihapus.');
+    }
+
+    /* ===================== TAB: PEMBAYARAN QRIS ===================== */
+
+    public function qris()
+    {
+        return view('admin.pengaturan-qris');
+    }
+
+    public function updateQris(Request $request)
+    {
+        $data = $request->validate($this->aturanQris(), $this->pesan(), $this->label());
+
+        // Gambar bukan teks, jadi dikeluarkan dulu dari $data dan diproses terpisah (pola yang sama dengan landing page)
+        unset($data['qris_gambar']);
+        $gambarLama = Setting::ambil('qris_gambar');
+
+        if ($request->hasFile('qris_gambar')) {
+            // Nama file diacak oleh Laravel, jadi aman dari nama aneh/bentrok. Database hanya menyimpan alamatnya, mis. "qris/AbC123.png"
+            $data['qris_gambar'] = $request->file('qris_gambar')->store('qris', 'public');
         }
 
         Setting::simpan($data);
 
-        // Hapus gambar lama SETELAH data baru tersimpan, supaya kalau penyimpanan gagal gambar lama masih ada
-        if (isset($data['hero_gambar']) && $gambarLama) {
+        // Hapus QRIS lama SETELAH yang baru tersimpan, supaya kalau penyimpanan gagal QRIS lama masih ada
+        if (isset($data['qris_gambar']) && $gambarLama) {
             Storage::disk('public')->delete($gambarLama);
         }
 
-        return redirect()->route('admin.pengaturan.landing')->with('success', 'Landing page diperbarui.');
+        return redirect()->route('admin.pengaturan.qris')->with('success', 'QRIS toko diperbarui.');
     }
 
     /* ========================= ATURAN ========================= */
@@ -79,14 +169,19 @@ class PengaturanController extends Controller
         ];
     }
 
+    private function aturanQris(): array
+    {
+        return [
+            // max dalam KB (2048 = 2 MB). SVG tidak diizinkan karena bisa memuat skrip.
+            'qris_gambar' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            // NMID (nomor ID merchant QRIS) opsional; kalau diisi akan tampil di halaman pembayaran pelanggan
+            'qris_nmid'   => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9]+$/'],
+        ];
+    }
+
     private function aturanLanding(): array
     {
         return [
-            'hero_judul'       => 'required|string|max:150',
-            'hero_deskripsi'   => 'required|string|max:300',
-            'hero_tombol_teks' => 'required|string|max:30',
-            // max di sini dalam KB (2048 = 2 MB). SVG sengaja tidak diizinkan karena bisa memuat skrip.
-            'hero_gambar'      => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'footer_deskripsi' => 'required|string|max:300',
         ];
     }
@@ -103,6 +198,7 @@ class PengaturanController extends Controller
             'string'   => ':attribute harus berupa teks.',
             'regex'    => 'Format :attribute tidak valid (hanya angka, spasi, +, -, dan tanda kurung).',
             'bank_rekening.regex' => 'Nomor rekening hanya boleh berisi angka, spasi, dan tanda hubung (-).',
+            'qris_nmid.regex'     => 'NMID hanya boleh berisi huruf dan angka, tanpa spasi.',
             'image'    => ':attribute harus berupa gambar.',
             'mimes'    => ':attribute harus berformat JPG atau PNG.',
         ];
@@ -120,10 +216,8 @@ class PengaturanController extends Controller
             'bank_nama'            => 'Nama bank',
             'bank_rekening'        => 'Nomor rekening',
             'bank_atas_nama'       => 'Nama pemilik rekening',
-            'hero_judul'           => 'Judul utama',
-            'hero_deskripsi'       => 'Deskripsi banner',
-            'hero_tombol_teks'     => 'Teks tombol',
-            'hero_gambar'          => 'Gambar hero',
+            'qris_gambar'          => 'Gambar QRIS',
+            'qris_nmid'            => 'NMID',
             'footer_deskripsi'     => 'Deskripsi footer',
         ];
     }
