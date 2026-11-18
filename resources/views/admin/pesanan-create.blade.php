@@ -5,21 +5,24 @@
 @section('content')
 @php
     $input = 'w-full rounded-xl border border-pinkline bg-white px-4 py-2.5 text-sm focus:border-maroon focus:outline-none focus:ring-1 focus:ring-maroon';
+    $label = 'mb-1 block text-sm font-medium text-maroon';
+    $mode = old('mode_pelanggan', request('mode', 'ada'));
+    $itemsLama = old('items', [['id_product' => '', 'jumlah' => 1]]);
 
-    // Baris item: ambil dari old() kalau validasi gagal, kalau tidak mulai dengan 1 baris kosong
-    $baris = old('items', [['id_product' => '', 'jumlah' => 1]]);
+    $statusPesanan = [
+        'menunggu_pembayaran' => 'Menunggu Pembayaran', 'menunggu_dikonfirmasi' => 'Menunggu Dikonfirmasi',
+        'dikonfirmasi' => 'Dikonfirmasi', 'diproses' => 'Diproses', 'dalam_pengiriman' => 'Dalam Pengiriman',
+        'siap_diambil' => 'Siap Diambil', 'selesai' => 'Selesai', 'dibatalkan' => 'Dibatalkan',
+    ];
+    $metode = ['bayar_di_toko' => 'Tunai', 'QRIS' => 'QRIS', 'transfer_bank' => 'Transfer Bank', 'DP' => 'DP'];
+    $bayar = ['belum_dibayar' => 'Belum Dibayar', 'proses' => 'Proses', 'lunas' => 'Lunas'];
 
-    $metode = ['bayar_di_toko' => 'Tunai', 'QRIS' => 'QRIS', 'transfer_bank' => 'Transfer Bank', 'DP' => 'DP (Uang Muka)'];
-    $bayar  = ['belum_dibayar' => 'Belum Dibayar', 'proses' => 'Proses', 'lunas' => 'Lunas'];
-    $status = [
-        'menunggu_pembayaran'   => 'Menunggu Pembayaran',
-        'menunggu_dikonfirmasi' => 'Menunggu Dikonfirmasi',
-        'dikonfirmasi'          => 'Dikonfirmasi',
-        'diproses'              => 'Diproses',
-        'dalam_pengiriman'      => 'Dalam Pengiriman',
-        'siap_diambil'          => 'Siap Kirim',
-        'selesai'               => 'Selesai',
-        'dibatalkan'            => 'Batal',
+    $dataBaru = [
+        ['pelanggan_nama', 'Nama Pelanggan', 'text', 'Contoh: Siti Rahmawati'],
+        ['pelanggan_email', 'Email (Gmail)', 'email', 'contoh@gmail.com'],
+        ['pelanggan_telepon', 'No. HP', 'text', 'Contoh: 081234567890'],
+        ['pelanggan_alamat', 'Alamat (opsional)', 'text', 'Alamat lengkap'],
+        ['pelanggan_password', 'Password (opsional)', 'password', 'Kosongkan agar dibuat otomatis'],
     ];
 @endphp
 
@@ -27,141 +30,166 @@
     <a href="{{ route('admin.pesanan.index') }}" class="text-sm text-maroon hover:underline">&larr; Kembali ke daftar pesanan</a>
     <h1 class="mt-2 font-display text-3xl font-semibold text-maroon">Pesanan Baru</h1>
 
-    <form method="POST" action="{{ route('admin.pesanan.store') }}" class="mt-6 space-y-5 rounded-2xl border border-pinkline p-6">
+    <form id="formPesanan" method="POST" action="{{ route('admin.pesanan.store') }}" class="mt-6 space-y-5 rounded-2xl border border-pinkline p-6">
         @csrf
 
-        {{-- ITEM PRODUK (baris bisa ditambah/dihapus) --}}
-        <div>
-            <label class="mb-1 block text-sm font-medium text-maroon">Item Produk</label>
-            @error('items') <p class="mb-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        {{-- PELANGGAN --}}
+        <div id="blokPelanggan" class="rounded-2xl border border-pinkline p-4">
+            <p class="mb-2 text-sm font-medium text-maroon">Pelanggan</p>
 
-            <div id="daftar-item" class="space-y-2">
-                @foreach ($baris as $i => $b)
-                    <div class="item-baris">
-                        <div class="flex items-center gap-2">
-                            <select name="items[{{ $i }}][id_product]" class="{{ $input }}">
-                                <option value="">-- Pilih produk --</option>
-                                @foreach ($produk as $pr)
-                                    <option value="{{ $pr->id_product }}" @selected(($b['id_product'] ?? '') == $pr->id_product)>
-                                        {{ $pr->nama_produk }} - Rp {{ number_format($pr->harga, 0, ',', '.') }}@if ($pr->pakai_stok) (stok {{ $pr->stok }})@endif
-                                    </option>
-                                @endforeach
-                            </select>
-                            <input type="number" min="1" name="items[{{ $i }}][jumlah]" value="{{ $b['jumlah'] ?? 1 }}"
-                                   class="{{ $input }} w-24" aria-label="Jumlah">
-                            <button type="button" class="hapus-item shrink-0 rounded-lg bg-pinkcard px-3 py-2 text-xs font-semibold text-maroon hover:bg-maroon hover:text-white">Hapus</button>
-                        </div>
-                        @error("items.$i.id_product") <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        @error("items.$i.jumlah") <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                    </div>
+            <div class="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+                @foreach (['ada' => 'Pilih pelanggan', 'baru' => 'Tambah pelanggan baru + pesanan', 'tanpa' => 'Tanpa data pelanggan'] as $nilai => $teks)
+                    <label class="flex items-center gap-2">
+                        <input type="radio" name="mode_pelanggan" value="{{ $nilai }}" @checked($mode === $nilai) class="accent-maroon"> {{ $teks }}
+                    </label>
                 @endforeach
             </div>
 
-            <button type="button" id="tambah-item" class="mt-2 text-sm font-medium text-maroon hover:underline">+ Tambah produk</button>
-        </div>
-
-        <div class="grid gap-4 sm:grid-cols-2">
-            <div>
-                <label for="metode_pembayaran" class="mb-1 block text-sm font-medium text-maroon">Metode Pembayaran</label>
-                <select id="metode_pembayaran" name="metode_pembayaran" class="{{ $input }}">
-                    @foreach ($metode as $nilai => $label)
-                        <option value="{{ $nilai }}" @selected(old('metode_pembayaran', 'bayar_di_toko') === $nilai)>{{ $label }}</option>
+            <div data-mode="ada">
+                <select name="id_user" class="{{ $input }}">
+                    <option value="">-- Pilih pelanggan --</option>
+                    @foreach ($pelangganList as $p)
+                        <option value="{{ $p->id_user }}" @selected((string) old('id_user') === (string) $p->id_user)>
+                            {{ $p->nama }} &middot; {{ $p->email }}{{ $p->nmr_telepon ? ' · ' . $p->nmr_telepon : '' }}
+                        </option>
                     @endforeach
                 </select>
-                @error('metode_pembayaran') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                @error('id_user') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
 
-            {{-- Muncul hanya kalau metode pembayaran = DP --}}
-            <div id="kolom-dp" class="{{ old('metode_pembayaran') === 'DP' ? '' : 'hidden' }}">
-                <label for="jumlah_dp" class="mb-1 block text-sm font-medium text-maroon">Jumlah DP (Rp)</label>
-                <input id="jumlah_dp" type="number" min="1" name="jumlah_dp" value="{{ old('jumlah_dp') }}"
-                       placeholder="Contoh: 100000" class="{{ $input }}">
-                @error('jumlah_dp') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-            </div>
-
-            <div>
-                <label for="status_pembayaran" class="mb-1 block text-sm font-medium text-maroon">Status Pembayaran</label>
-                <select id="status_pembayaran" name="status_pembayaran" class="{{ $input }}">
-                    @foreach ($bayar as $nilai => $label)
-                        <option value="{{ $nilai }}" @selected(old('status_pembayaran', 'belum_dibayar') === $nilai)>{{ $label }}</option>
-                    @endforeach
-                </select>
-                @error('status_pembayaran') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-            </div>
-
-            <div>
-                <label for="status_pesanan" class="mb-1 block text-sm font-medium text-maroon">Status Pesanan</label>
-                <select id="status_pesanan" name="status_pesanan" class="{{ $input }}">
-                    @foreach ($status as $nilai => $label)
-                        <option value="{{ $nilai }}" @selected(old('status_pesanan', 'menunggu_dikonfirmasi') === $nilai)>{{ $label }}</option>
-                    @endforeach
-                </select>
-                @error('status_pesanan') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-            </div>
-
-            <div>
-                <label for="jadwal_pengambilan" class="mb-1 block text-sm font-medium text-maroon">Jadwal Pengiriman</label>
-                <input id="jadwal_pengambilan" type="datetime-local" name="jadwal_pengambilan"
-                       value="{{ old('jadwal_pengambilan') }}" class="{{ $input }}">
-                @error('jadwal_pengambilan') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            <div data-mode="baru" class="grid gap-3 sm:grid-cols-2">
+                @foreach ($dataBaru as [$nama, $teks, $tipe, $placeholder])
+                    <div class="{{ $nama === 'pelanggan_alamat' ? 'sm:col-span-2' : '' }}">
+                        <label for="{{ $nama }}" class="mb-1 block text-xs text-neutral-600">{{ $teks }}</label>
+                        <input id="{{ $nama }}" type="{{ $tipe }}" name="{{ $nama }}" value="{{ $tipe === 'password' ? '' : old($nama) }}"
+                               placeholder="{{ $placeholder }}" class="{{ $input }}">
+                        @error($nama) <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+                @endforeach
+                <p class="text-[11px] text-neutral-500 sm:col-span-2">Pelanggan baru otomatis masuk ke daftar Pelanggan dengan kategori Baru.</p>
             </div>
         </div>
 
-        <p class="text-xs text-neutral-500">Total harga dihitung otomatis dari harga produk x jumlah. Stok berkurang otomatis hanya untuk produk yang dihitung per stok. Untuk pembayaran DP, status pembayaran otomatis Proses sampai dilunasi.</p>
+        {{-- PESANAN --}}
+        <div id="blokPesanan" class="space-y-5">
+            <div>
+                <label class="{{ $label }}">Item Produk</label>
+                <div id="daftarItem" class="space-y-2">
+                    @foreach ($itemsLama as $i => $it)
+                        <div class="baris-item flex items-start gap-2">
+                            <select name="items[{{ $i }}][id_product]" class="{{ $input }}">
+                                <option value="">-- Pilih produk --</option>
+                                @foreach ($produk as $p)
+                                    <option value="{{ $p->id_product }}" @selected((string) ($it['id_product'] ?? '') === (string) $p->id_product)>
+                                        {{ $p->nama_produk }} — Rp {{ number_format($p->harga, 0, ',', '.') }}{{ $p->pakai_stok ? ' (stok ' . $p->stok . ')' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <input type="number" min="1" name="items[{{ $i }}][jumlah]" value="{{ $it['jumlah'] ?? 1 }}" class="{{ $input }}">
+                            <button type="button" class="hapus-item rounded-xl bg-pinkcard px-4 py-2.5 text-sm font-medium text-maroon hover:bg-pinkline">Hapus</button>
+                        </div>
+                        @if ($errors->has("items.$i.id_product") || $errors->has("items.$i.jumlah"))
+                            <p class="text-xs text-rose-600">{{ $errors->first("items.$i.id_product") ?: $errors->first("items.$i.jumlah") }}</p>
+                        @endif
+                    @endforeach
+                </div>
+                @error('items') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                <button type="button" id="tambahItem" class="mt-2 text-sm text-maroon hover:underline">+ Tambah produk</button>
+            </div>
 
-        <div class="flex gap-2">
-            <button class="rounded-xl bg-maroon px-5 py-2.5 text-sm font-medium text-white hover:opacity-90">Simpan Pesanan</button>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label for="metode_pembayaran" class="{{ $label }}">Metode Pembayaran</label>
+                    <select id="metode_pembayaran" name="metode_pembayaran" class="{{ $input }}">
+                        @foreach ($metode as $k => $v) <option value="{{ $k }}" @selected(old('metode_pembayaran', 'bayar_di_toko') === $k)>{{ $v }}</option> @endforeach
+                    </select>
+                    @error('metode_pembayaran') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label for="status_pembayaran" class="{{ $label }}">Status Pembayaran</label>
+                    <select id="status_pembayaran" name="status_pembayaran" class="{{ $input }}">
+                        @foreach ($bayar as $k => $v) <option value="{{ $k }}" @selected(old('status_pembayaran', 'belum_dibayar') === $k)>{{ $v }}</option> @endforeach
+                    </select>
+                    @error('status_pembayaran') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div id="blokDp" class="sm:col-span-2">
+                    <label for="jumlah_dp" class="{{ $label }}">Jumlah DP (Rp)</label>
+                    <input id="jumlah_dp" type="number" min="1" name="jumlah_dp" value="{{ old('jumlah_dp') }}" class="{{ $input }}">
+                    @error('jumlah_dp') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label for="status_pesanan" class="{{ $label }}">Status Pesanan</label>
+                    <select id="status_pesanan" name="status_pesanan" class="{{ $input }}">
+                        @foreach ($statusPesanan as $k => $v) <option value="{{ $k }}" @selected(old('status_pesanan', 'menunggu_dikonfirmasi') === $k)>{{ $v }}</option> @endforeach
+                    </select>
+                    @error('status_pesanan') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label for="jadwal_pengambilan" class="{{ $label }}">Jadwal Pengiriman</label>
+                    <input id="jadwal_pengambilan" type="datetime-local" name="jadwal_pengambilan" value="{{ old('jadwal_pengambilan') }}" class="{{ $input }}">
+                    @error('jadwal_pengambilan') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+            </div>
+
+            <p class="text-xs text-neutral-600">Total harga dihitung otomatis dari harga produk x jumlah. Stok berkurang otomatis hanya untuk produk yang dihitung per stok. Untuk pembayaran DP, status pembayaran otomatis Proses sampai dilunasi.</p>
+        </div>
+
+        <div class="flex gap-2 pt-1">
+            <button type="submit" id="tombolSimpan" class="rounded-xl bg-maroon px-5 py-2.5 text-sm font-medium text-white hover:opacity-90">Simpan Pesanan</button>
             <a href="{{ route('admin.pesanan.index') }}" class="rounded-xl bg-pinkcard px-5 py-2.5 text-sm font-medium text-maroon hover:bg-pinkline">Batal</a>
         </div>
     </form>
 </div>
 
-{{-- JavaScript kecil hanya untuk tambah/hapus baris produk --}}
+<template id="templateItem">
+    <div class="baris-item flex items-start gap-2">
+        <select name="items[__i__][id_product]" class="{{ $input }}">
+            <option value="">-- Pilih produk --</option>
+            @foreach ($produk as $p)
+                <option value="{{ $p->id_product }}">{{ $p->nama_produk }} — Rp {{ number_format($p->harga, 0, ',', '.') }}{{ $p->pakai_stok ? ' (stok ' . $p->stok . ')' : '' }}</option>
+            @endforeach
+        </select>
+        <input type="number" min="1" name="items[__i__][jumlah]" value="1" class="{{ $input }}">
+        <button type="button" class="hapus-item rounded-xl bg-pinkcard px-4 py-2.5 text-sm font-medium text-maroon hover:bg-pinkline">Hapus</button>
+    </div>
+</template>
+
 <script>
     (function () {
-        // Metode DP: tampilkan kolom jumlah DP, status pembayaran otomatis proses
+        const form = document.getElementById('formPesanan');
+        const blokPelanggan = document.getElementById('blokPelanggan');
+        const daftar = document.getElementById('daftarItem');
+        const templat = document.getElementById('templateItem');
         const metode = document.getElementById('metode_pembayaran');
-        const kolomDp = document.getElementById('kolom-dp');
-        const statusBayar = document.getElementById('status_pembayaran');
+        const blokDp = document.getElementById('blokDp');
+        let nomor = daftar.querySelectorAll('.baris-item').length;
 
-        function aturDp() {
-            const dp = metode.value === 'DP';
-            kolomDp.classList.toggle('hidden', !dp);
-            if (dp) statusBayar.value = 'proses';
-            statusBayar.classList.toggle('pointer-events-none', dp);
-            statusBayar.classList.toggle('opacity-60', dp);
-            statusBayar.tabIndex = dp ? -1 : 0;
-        }
-        metode.addEventListener('change', aturDp);
-        aturDp();
+        function sinkron() {
+            const m = blokPelanggan.querySelector('[name=mode_pelanggan]:checked').value;
 
-        const daftar = document.getElementById('daftar-item');
-
-        // Beri nomor ulang items[0], items[1], ... supaya urut setelah tambah/hapus
-        function nomori() {
-            daftar.querySelectorAll('.item-baris').forEach((baris, i) => {
-                baris.querySelectorAll('select, input').forEach(el => {
-                    el.name = el.name.replace(/items\[\d+\]/, 'items[' + i + ']');
-                });
+            blokPelanggan.querySelectorAll('[data-mode]').forEach(function (el) {
+                const tampil = el.dataset.mode === m;
+                el.style.display = tampil ? '' : 'none';
+                el.querySelectorAll('input, select').forEach(function (i) { i.disabled = !tampil; });
             });
+
+            const dp = metode.value === 'DP';
+            blokDp.style.display = dp ? '' : 'none';
+            blokDp.querySelectorAll('input').forEach(function (i) { i.disabled = !dp; });
         }
 
-        document.getElementById('tambah-item').addEventListener('click', () => {
-            const baru = daftar.querySelector('.item-baris').cloneNode(true);
-            baru.querySelector('select').value = '';
-            baru.querySelector('input').value = 1;
-            baru.querySelectorAll('p').forEach(p => p.remove()); // buang pesan error hasil salinan
-            daftar.appendChild(baru);
-            nomori();
+        document.getElementById('tambahItem').addEventListener('click', function () {
+            daftar.insertAdjacentHTML('beforeend', templat.innerHTML.replaceAll('__i__', nomor++));
         });
 
-        daftar.addEventListener('click', (e) => {
+        form.addEventListener('click', function (e) {
             if (!e.target.classList.contains('hapus-item')) return;
-            if (daftar.querySelectorAll('.item-baris').length > 1) {
-                e.target.closest('.item-baris').remove();
-                nomori();
-            }
+            const baris = e.target.closest('.baris-item');
+            if (daftar.querySelectorAll('.baris-item').length > 1) baris.remove();
         });
+
+        form.addEventListener('change', sinkron);
+        sinkron();
     })();
 </script>
 @endsection

@@ -5,10 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
-use App\Models\Pelanggan;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Fluent;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -29,8 +33,6 @@ class PesananController extends Controller
     // READ: daftar + statistik + pencarian + filter status
     public function index(Request $request)
     {
-        Pelanggan::sinkronDariUser(); // pelanggan baru dari website otomatis masuk ke tabel Pelanggan
-
         $stat = [
             'total'    => Order::whereMonth('dibuat_pada', now()->month)
                                ->whereYear('dibuat_pada', now()->year)->count(),
@@ -48,15 +50,17 @@ class PesananController extends Controller
         $sumberOrder = $this->queryPesanan($request)->toBase()
             ->select([DB::raw("'order' as tipe"), 'id_order as ref_id', 'dibuat_pada as tgl']);
 
-        $sumberPelanggan = Pelanggan::query()
+        // Pelanggan = akun di tabel users yang berperan "pelanggan"
+        $sumberPelanggan = User::query()
+            ->where('role', 'pelanggan')
             ->whereNotExists(fn ($w) => $w->select(DB::raw(1))->from('orders')
-                ->whereColumn('orders.id_user', 'pelanggan.id_user'))
+                ->whereColumn('orders.id_user', 'users.id_user'))
             ->when($kata, fn ($w, $k) => $w->where(fn ($x) => $x
                 ->where('nama', 'like', "%{$k}%")
                 ->orWhere('email', 'like', "%{$k}%")
-                ->orWhere('kontak', 'like', "%{$k}%")))
+                ->orWhere('nmr_telepon', 'like', "%{$k}%")))
             ->toBase()
-            ->select([DB::raw("'pelanggan' as tipe"), 'id as ref_id', 'created_at as tgl']);
+            ->select([DB::raw("'pelanggan' as tipe"), 'id_user as ref_id', 'created_at as tgl']);
 
         $tanggal = $this->tanggalFilter($request);
 
@@ -76,11 +80,22 @@ class PesananController extends Controller
 
         // Ambil data lengkap hanya untuk baris di halaman ini
         $baris   = $pesanan->getCollection();
-        $orders  = Order::with(['pelanggan', 'user', 'items.product'])
+        $orders  = Order::with(['user', 'items.product'])
             ->whereIn('id_order', $baris->where('tipe', 'order')->pluck('ref_id'))
             ->get()->keyBy('id_order');
-        $semuaPelanggan = Pelanggan::whereIn('id', $baris->where('tipe', 'pelanggan')->pluck('ref_id'))
-            ->get()->keyBy('id');
+
+        // Nama properti disamakan dengan model Pelanggan lama (kontak, kategori) supaya tampilan daftar tidak berubah
+        $semuaPelanggan = User::whereIn('id_user', $baris->where('tipe', 'pelanggan')->pluck('ref_id'))
+            ->get()
+            ->mapWithKeys(fn ($u) => [$u->id_user => new Fluent([
+                'id'         => $u->id_user,
+                'id_user'    => $u->id_user,
+                'nama'       => $u->nama,
+                'email'      => $u->email,
+                'kontak'     => $u->nmr_telepon,
+                'kategori'   => $u->kategori_pelanggan,
+                'created_at' => $u->created_at ? Carbon::parse($u->created_at) : null,
+            ])]);
 
         $pesanan->setCollection($baris->map(fn ($r) => $r->tipe === 'order'
             ? ['order' => $orders[$r->ref_id] ?? null, 'pelanggan' => null]
@@ -124,10 +139,10 @@ class PesananController extends Controller
                 $i + 1,
                 (string) $o->no_invoice,
                 $o->dibuat_pada ? $o->dibuat_pada->format('d-m-Y H:i') : '-',
-                $o->nama_pelanggan,
-                $o->email_pelanggan,
-                (string) $o->kontak_pelanggan,
-                $o->kategori_pelanggan ?? '-',
+                $o->user?->nama ?? '-',
+                $o->user?->email ?? '-',
+                (string) ($o->user?->nmr_telepon ?? '-'),
+                $o->user?->kategori_pelanggan ?? '-',
                 $item,
                 $o->jadwal_pengambilan ? $o->jadwal_pengambilan->format('d-m-Y H:i') : '-',
                 $metode[$o->metode_pembayaran] ?? $o->metode_pembayaran,
@@ -235,13 +250,12 @@ class PesananController extends Controller
     // Query dasar daftar pesanan, dipakai bersama oleh index dan export
     private function queryPesanan(Request $request)
     {
-        return Order::with(['pelanggan', 'user', 'items.product'])
+        return Order::with(['user', 'items.product'])
             ->when($request->q, fn ($query, $q) => $query->where(function ($w) use ($q) {
                 $w->where('no_invoice', 'like', "%{$q}%")
-                  ->orWhereHas('pelanggan', fn ($p) => $p->where('nama', 'like', "%{$q}%")
+                  ->orWhereHas('user', fn ($u) => $u->where('nama', 'like', "%{$q}%")
                         ->orWhere('email', 'like', "%{$q}%")
-                        ->orWhere('kontak', 'like', "%{$q}%"))
-                  ->orWhereHas('user', fn ($u) => $u->where('nama', 'like', "%{$q}%"));
+                        ->orWhere('nmr_telepon', 'like', "%{$q}%"));
             }))
             ->when($request->status, fn ($query, $s) => $query->where('status_pesanan', $s))
             ->when($this->tanggalFilter($request), fn ($query, $t) => $query->whereDate('jadwal_pengambilan', $t));
@@ -263,12 +277,15 @@ class PesananController extends Controller
             ->filter(fn ($p) => $p->status === 'Tersedia')
             ->values();
 
-        return view('admin.pesanan-create', compact('produk'));
+        $pelangganList = User::where('role', 'pelanggan')->orderBy('nama')->get(['id_user', 'nama', 'email', 'nmr_telepon']);
+
+        return view('admin.pesanan-create', compact('produk', 'pelangganList'));
     }
 
     // CREATE: simpan
     public function store(Request $request)
     {
+
         $data = $request->validate([
             'metode_pembayaran'  => ['required', Rule::in(self::METODE)],
             'jumlah_dp'          => ['nullable', 'required_if:metode_pembayaran,DP', 'integer', 'min:1'],
@@ -278,6 +295,13 @@ class PesananController extends Controller
             'items'              => 'required|array|min:1',
             'items.*.id_product' => ['required', 'distinct', Rule::exists('products', 'id_product')],
             'items.*.jumlah'     => 'required|integer|min:1',
+            'mode_pelanggan'     => ['nullable', Rule::in(['ada', 'baru', 'tanpa'])],
+            'id_user'            => ['nullable', 'required_if:mode_pelanggan,ada', Rule::exists('users', 'id_user')->where('role', 'pelanggan')],
+            'pelanggan_nama'     => ['nullable', 'required_if:mode_pelanggan,baru', 'string', 'max:100'],
+            'pelanggan_email'    => ['nullable', 'required_if:mode_pelanggan,baru', 'email', 'max:100', 'unique:users,email'],
+            'pelanggan_telepon'  => ['nullable', 'required_if:mode_pelanggan,baru', 'string', 'max:15'],
+            'pelanggan_alamat'   => ['nullable', 'string', 'max:255'],
+            'pelanggan_password' => ['nullable', 'string', 'min:6'],
         ], [
             'required'    => ':attribute wajib diisi.',
             'required_if' => ':attribute wajib diisi untuk pembayaran DP.',
@@ -287,6 +311,13 @@ class PesananController extends Controller
             'min'         => ':attribute minimal :min.',
             'distinct'    => 'Produk tidak boleh dipilih dua kali.',
             'date'        => 'Format tanggal tidak valid.',
+            'email'       => 'Format email tidak valid.',
+            'unique'      => ':attribute sudah terdaftar.',
+            'max'         => ':attribute terlalu panjang.',
+            'id_user.required_if'            => 'Pilih pelanggan terlebih dahulu.',
+            'pelanggan_nama.required_if'     => 'Nama pelanggan wajib diisi.',
+            'pelanggan_email.required_if'    => 'Email pelanggan wajib diisi.',
+            'pelanggan_telepon.required_if'  => 'No. HP pelanggan wajib diisi.',
         ], [
             'metode_pembayaran'  => 'Metode pembayaran',
             'jumlah_dp'          => 'Jumlah DP',
@@ -296,9 +327,21 @@ class PesananController extends Controller
             'items'              => 'Item produk',
             'items.*.id_product' => 'Produk',
             'items.*.jumlah'     => 'Jumlah',
+            'id_user'            => 'Pelanggan',
+            'pelanggan_nama'     => 'Nama pelanggan',
+            'pelanggan_email'    => 'Email pelanggan',
+            'pelanggan_telepon'  => 'No. HP pelanggan',
+            'pelanggan_alamat'   => 'Alamat pelanggan',
+            'pelanggan_password' => 'Password',
         ]);
 
         $order = DB::transaction(function () use ($data) {
+            $idUser = match ($data['mode_pelanggan'] ?? 'tanpa') {
+                'ada'   => (int) $data['id_user'],
+                'baru'  => $this->buatPelanggan($data),
+                default => null, // pesanan di toko tanpa data pelanggan
+            };
+
             $total = 0;
             $baris = [];
 
@@ -344,7 +387,7 @@ class PesananController extends Controller
 
             $order = Order::create([
                 'no_invoice'         => $this->buatInvoice(),
-                'id_user'            => null, // pesanan dari admin (di toko), tanpa akun pelanggan
+                'id_user'            => $idUser,
                 'metode_pembayaran'  => $data['metode_pembayaran'],
                 'status_pembayaran'  => $statusBayar,
                 'status_pesanan'     => $data['status_pesanan'],
@@ -368,6 +411,51 @@ class PesananController extends Controller
 
         return redirect()->route('admin.pesanan.index')
             ->with('success', "Pesanan #{$order->no_invoice} berhasil dibuat.");
+    }
+
+    private function simpanPelangganSaja(Request $request)
+    {
+        $data = $request->validate([
+            'pelanggan_nama'     => ['required', 'string', 'max:100'],
+            'pelanggan_email'    => ['required', 'email', 'max:100', 'unique:users,email'],
+            'pelanggan_telepon'  => ['required', 'string', 'max:15'],
+            'pelanggan_alamat'   => ['nullable', 'string', 'max:255'],
+            'pelanggan_password' => ['nullable', 'string', 'min:6'],
+        ], [
+            'required' => ':attribute wajib diisi.',
+            'email'    => 'Format email tidak valid.',
+            'unique'   => ':attribute sudah terdaftar.',
+            'max'      => ':attribute terlalu panjang.',
+            'min'      => ':attribute minimal :min karakter.',
+        ], [
+            'pelanggan_nama'     => 'Nama pelanggan',
+            'pelanggan_email'    => 'Email pelanggan',
+            'pelanggan_telepon'  => 'No. HP pelanggan',
+            'pelanggan_alamat'   => 'Alamat pelanggan',
+            'pelanggan_password' => 'Password',
+        ]);
+
+        $this->buatPelanggan($data);
+
+        return redirect()->route('admin.pelanggan.index')
+            ->with('success', "Pelanggan {$data['pelanggan_nama']} berhasil ditambahkan.");
+    }
+
+    // Pelanggan baru dari form pesanan: dibuat sebagai akun di tabel users (kategori otomatis "Baru")
+    private function buatPelanggan(array $data): int
+    {
+        $user = (new User)->forceFill([
+            'nama'        => $data['pelanggan_nama'],
+            'email'       => $data['pelanggan_email'],
+            'nmr_telepon' => $data['pelanggan_telepon'],
+            'alamat'      => $data['pelanggan_alamat'] ?? '-',
+            'password'    => Hash::make($data['pelanggan_password'] ?? Str::random(12)),
+            'role'        => 'pelanggan',
+            'status'      => 'aktif',
+        ]);
+        $user->save();
+
+        return $user->id_user;
     }
 
     // No. invoice: ORD-0001, ORD-0002, ... (kolom no_invoice maksimal 20 karakter)

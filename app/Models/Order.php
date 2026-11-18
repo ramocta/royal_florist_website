@@ -41,10 +41,11 @@ class Order extends Model
         return $this->belongsTo(User::class, 'id_user', 'id_user');
     }
 
-    // Data pelanggan di menu Pelanggan (nyambung lewat id_user, sama seperti Pelanggan::orders())
+    // Tabel pelanggan sudah dihapus. Data pelanggan sekarang adalah akun di tabel users,
+    // jadi relasi ini menunjuk ke User (sama dengan user()) supaya kode lama tetap jalan.
     public function pelanggan(): BelongsTo
     {
-        return $this->belongsTo(Pelanggan::class, 'id_user', 'id_user');
+        return $this->belongsTo(User::class, 'id_user', 'id_user');
     }
 
     public function items(): HasMany
@@ -57,24 +58,24 @@ class Order extends Model
         return $this->hasMany(OrderStatusHistory::class, 'id_order', 'id_order');
     }
 
-    // Data pelanggan untuk tabel daftar pesanan. Pesanan yang dibuat admin di toko tidak punya id_user, tampil "-".
+    // Data pelanggan untuk tabel daftar pesanan. Pesanan yang dibuat admin di toko tanpa akun tidak punya id_user, tampil "-".
     public function getNamaPelangganAttribute(): string
     {
-        return $this->pelanggan->nama ?? $this->user->nama ?? '-';
+        return $this->user->nama ?? '-';
     }
 
     public function getEmailPelangganAttribute(): string
     {
-        return $this->pelanggan->email ?? $this->user->email ?? '-';
+        return $this->user->email ?? '-';
     }
 
     public function getKontakPelangganAttribute(): string
     {
-        return $this->pelanggan->kontak ?? $this->user->nmr_telepon ?? '-';
+        return $this->user->nmr_telepon ?? '-';
     }
 
     public function getKategoriPelangganAttribute(): ?string
     {
-        return $this->pelanggan->kategori ?? null;
+        return $this->user->kategori_pelanggan ?? null;
     }
 }
