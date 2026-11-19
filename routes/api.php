@@ -17,8 +17,14 @@ Route::post('/login', [AuthController::class, 'login']);
 // Login karyawan
 Route::post('/login-karyawan', [AuthControllerApi::class, 'login']);
 
-// Daftar pesanan
+// Daftar pesanan (tetap seperti semula)
 Route::get('/orders', [OrderController::class, 'index']);
+
+// Detail & ubah status pesanan (khusus karyawan yang sudah login)
+Route::middleware(['auth:sanctum', KaryawanAktif::class])->group(function () {
+    Route::get('/orders/{id}', [OrderController::class, 'show']);
+    Route::patch('/orders/{id}/status', [OrderController::class, 'updateStatus']);
+});
 
 // Route setelah login
 Route::middleware('auth:sanctum')->group(function () {
