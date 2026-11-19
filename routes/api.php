@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\KaryawanAuthController;
 use App\Http\Controllers\Api\KaryawanBerandaController;
 use App\Http\Controllers\Api\ProdukApiController;
+use App\Http\Controllers\Api\OrderSummaryController;
 use App\Http\Middleware\KaryawanAktif;
 
 // Login dan register pelanggan
@@ -41,5 +42,8 @@ Route::prefix('karyawan')->group(function () {
         Route::patch('/produk/{produk}/stok', [ProdukApiController::class, 'stok']);
         Route::patch('/produk/{produk}/ketersediaan', [ProdukApiController::class, 'ketersediaan']);
         Route::delete('/produk/{produk}', [ProdukApiController::class, 'destroy']);
+
+        Route::get('/ringkasan', [OrderSummaryController::class, 'index']);
+        Route::get('/pesanan', [OrderSummaryController::class, 'pesanan']);
     });
 });
