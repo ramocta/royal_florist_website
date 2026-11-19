@@ -7,7 +7,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class OrderController extends Controller
 {
@@ -33,14 +32,12 @@ class OrderController extends Controller
     }
 
     /**
-     * Detail satu pesanan (dipakai halaman Detail Pesanan).
-     * Kolom/tabel yang tidak ada akan dilewati, tidak error.
+     * Detail satu pesanan (halaman Detail Pesanan dan Struk).
+     * GET /api/orders/{id}
      */
     public function show($id)
     {
-        $order = DB::table('orders')
-            ->where('orders.id_order', $id)
-            ->first();
+        $order = DB::table('orders')->where('id_order', $id)->first();
 
         if (!$order) {
             return response()->json(['message' => 'Pesanan tidak ditemukan'], 404);
@@ -48,19 +45,47 @@ class OrderController extends Controller
 
         $data = (array) $order;
 
-        // Info pelanggan
         $user = DB::table('users')->where('id_user', $order->id_user)->first();
-        if ($user) {
-            $u = (array) $user;
-            $data['nama_pelanggan'] = $u['nama'] ?? null;
-            $data['no_hp'] = $u['no_hp'] ?? $u['no_telepon'] ?? $u['telepon'] ?? null;
-            if (empty($data['alamat_pengiriman']) && empty($data['alamat'])) {
-                $data['alamat'] = $u['alamat'] ?? null;
-            }
+
+        // Alamat pengiriman milik pelanggan (yang utama dulu)
+        $alamat = DB::table('alamat_pengiriman')
+            ->where('id_user', $order->id_user)
+            ->orderByDesc('is_utama')
+            ->orderByDesc('id_alamat')
+            ->first();
+
+        // Nama pelanggan
+        $data['nama_pelanggan'] = $user->nama ?? ($alamat->nama_penerima ?? null);
+
+        // Telepon: users.nmr_telepon, cadangan alamat_pengiriman.nomor_hp
+        $data['no_hp'] = !empty($user->nmr_telepon)
+            ? $user->nmr_telepon
+            : ($alamat->nomor_hp ?? null);
+
+        // Alamat: alamat_tujuan pesanan, atau "Ambil di toko"
+        if (!empty($order->alamat_tujuan)) {
+            $data['alamat'] = $order->alamat_tujuan;
+        } elseif ($order->jenis_pengambilan === 'ambil_di_toko') {
+            $data['alamat'] = 'Ambil di toko';
+        } else {
+            $data['alamat'] = $user->alamat ?? null;
         }
 
-        // Item produk: coba beberapa nama tabel yang umum
-        $data['items'] = $this->ambilItems($id);
+        // Catatan pelanggan (diambil dari catatan alamat pengiriman)
+        $data['catatan_pelanggan'] = $alamat->catatan ?? null;
+
+        // Item produk
+        $data['items'] = DB::table('order_items as oi')
+            ->leftJoin('products as p', 'p.id_product', '=', 'oi.id_product')
+            ->where('oi.id_order', $id)
+            ->select(
+                'oi.id_order_item',
+                'oi.id_product',
+                'p.nama_produk',
+                'oi.jumlah',
+                'oi.harga_satuan'
+            )
+            ->get();
 
         return response()->json(['data' => $data]);
     }
@@ -83,52 +108,37 @@ class OrderController extends Controller
             return response()->json(['message' => 'Pesanan tidak ditemukan'], 404);
         }
 
-        $update = ['status_pesanan' => $validated['status_pesanan']];
+        $catatan = $validated['catatan'] ?? null;
 
-        // Catatan admin disimpan ke kolom terpisah (kalau ada),
-        // supaya tidak menimpa catatan pelanggan.
-        if (!empty($validated['catatan']) && Schema::hasColumn('orders', 'catatan_admin')) {
-            $update['catatan_admin'] = $validated['catatan'];
+        // Hanya isi diubah_oleh kalau id pengguna benar-benar ada di tabel users
+        $idPengguna = optional($request->user())->getKey();
+        if ($idPengguna && !DB::table('users')->where('id_user', $idPengguna)->exists()) {
+            $idPengguna = null;
         }
 
-        DB::table('orders')->where('id_order', $id)->update($update);
+        DB::transaction(function () use ($id, $validated, $catatan, $idPengguna) {
+            $update = ['status_pesanan' => $validated['status_pesanan']];
+
+            // Catatan admin disimpan di kolom catatan_toko
+            if (!empty($catatan)) {
+                $update['catatan_toko'] = $catatan;
+            }
+
+            DB::table('orders')->where('id_order', $id)->update($update);
+
+            // Catat riwayat perubahan status
+            DB::table('order_status_history')->insert([
+                'id_order'       => $id,
+                'status_pesanan' => $validated['status_pesanan'],
+                'catatan'        => $catatan,
+                'diubah_oleh'    => $idPengguna,
+                'diubah_pada'    => now(),
+            ]);
+        });
 
         return response()->json([
             'message' => 'Status pesanan berhasil diubah',
             'data'    => DB::table('orders')->where('id_order', $id)->first(),
         ]);
-    }
-
-    /**
-     * Ambil item produk dari tabel detail pesanan (nama tabel menyesuaikan).
-     */
-    private function ambilItems($idOrder): array
-    {
-        $kandidat = ['detail_orders', 'order_items', 'detail_pesanan', 'order_details'];
-
-        foreach ($kandidat as $tabel) {
-            if (!Schema::hasTable($tabel) || !Schema::hasColumn($tabel, 'id_order')) {
-                continue;
-            }
-
-            $query = DB::table($tabel)->where("$tabel.id_order", $idOrder);
-
-            // Gabungkan nama produk kalau memungkinkan
-            if (
-                Schema::hasTable('produk')
-                && Schema::hasColumn($tabel, 'id_produk')
-                && Schema::hasColumn('produk', 'id_produk')
-                && Schema::hasColumn('produk', 'nama')
-            ) {
-                $query->leftJoin('produk', 'produk.id_produk', '=', "$tabel.id_produk")
-                      ->select("$tabel.*", 'produk.nama as nama_produk');
-            } else {
-                $query->select("$tabel.*");
-            }
-
-            return $query->get()->map(fn ($r) => (array) $r)->all();
-        }
-
-        return [];
     }
 }
