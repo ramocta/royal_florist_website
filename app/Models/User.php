@@ -19,7 +19,10 @@ use Laravel\Sanctum\HasApiTokens;
     'alamat',
     'foto_profil',
     'status',
-    'role'
+    'role',
+    'jenis_kelamin',
+    'umur',
+    'foto',
 ])]
 #[Hidden(['password'])]
 class User extends Authenticatable
@@ -34,6 +37,7 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'umur'     => 'integer',
         ];
     }
 

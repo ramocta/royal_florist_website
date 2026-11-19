@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\KaryawanAuthController;
 use App\Http\Controllers\Api\KaryawanBerandaController;
+use App\Http\Controllers\Api\KaryawanProfilController;
 use App\Http\Controllers\Api\ProdukApiController;
 use App\Http\Controllers\Api\OrderSummaryController;
 use App\Http\Middleware\KaryawanAktif;
@@ -34,6 +35,9 @@ Route::middleware('auth:sanctum')->group(function () {
 // Foto produk (publik, sama seperti katalog pelanggan)
 Route::get('/produk-foto/{produk}', [ProdukApiController::class, 'foto']);
 
+// Foto profil karyawan (publik, disajikan lewat Laravel agar CORS berlaku)
+Route::get('/karyawan-foto/{id}', [KaryawanProfilController::class, 'fotoFile']);
+
 // Mobile karyawan
 Route::prefix('karyawan')->group(function () {
     Route::post('/login', [KaryawanAuthController::class, 'login']);
@@ -41,6 +45,11 @@ Route::prefix('karyawan')->group(function () {
     Route::middleware(['auth:sanctum', KaryawanAktif::class])->group(function () {
         Route::post('/logout', [KaryawanAuthController::class, 'logout']);
         Route::get('/beranda', [KaryawanBerandaController::class, 'index']);
+
+        // Profil
+        Route::get('/profil', [KaryawanProfilController::class, 'show']);
+        Route::put('/profil', [KaryawanProfilController::class, 'update']);
+        Route::post('/profil/foto', [KaryawanProfilController::class, 'foto']);
 
         Route::get('/produk', [ProdukApiController::class, 'index']);
         Route::post('/produk', [ProdukApiController::class, 'store']);
