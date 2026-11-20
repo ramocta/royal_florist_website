@@ -1,0 +1,171 @@
+/* ==========================================================
+   Custom Buket - Royal Florist
+   ========================================================== */
+:root {
+    --cb-burgundy: #8b2547;
+    --cb-burgundy-dark: #5e1530;
+    --cb-pink: #f4a8c0;
+    --cb-pink-soft: #fbeaf0;
+    --cb-text: #5e1530;
+    --cb-muted: #9a6a7d;
+}
+
+.cb-page {
+    color: var(--cb-text);
+    font-family: 'Inter', sans-serif;
+}
+
+.cb-alert {
+    background: #e7f6ec;
+    color: #1f6b3a;
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    font-size: 13px;
+}
+
+.cb-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 30px;
+    margin: 0 0 4px;
+    color: var(--cb-burgundy);
+}
+.cb-header p { margin: 0 0 20px; font-size: 12px; color: var(--cb-muted); }
+
+.cb-layout {
+    display: grid;
+    grid-template-columns: 325px 1fr;
+    gap: 22px;
+    align-items: start;
+}
+
+/* ---------- Preview ---------- */
+.cb-preview-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 2px 10px rgba(139, 37, 71, .08);
+    position: sticky;
+    top: 88px;
+}
+.cb-preview-badge {
+    background: var(--cb-pink-soft);
+    border-radius: 8px;
+    text-align: center;
+    padding: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    color: var(--cb-burgundy);
+}
+.cb-preview-stage { display: flex; justify-content: center; padding: 28px 0 22px; }
+.cb-preview-stage svg { width: 100%; max-width: 240px; height: auto; }
+
+.cb-summary {
+    background: var(--cb-pink-soft);
+    border: 1px solid #f0cfdb;
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 11.5px;
+}
+.cb-summary h4 { font-family: 'Playfair Display', serif; font-size: 13px; margin: 0 0 8px; }
+.cb-summary ul { list-style: none; margin: 0; padding: 0; }
+.cb-summary li { margin-bottom: 4px; }
+.cb-summary li::before { content: '• '; }
+
+/* ---------- Boxes ---------- */
+.cb-box {
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px 20px 22px;
+    margin-bottom: 18px;
+    box-shadow: 0 2px 10px rgba(139, 37, 71, .06);
+}
+.cb-title { font-family: 'Playfair Display', serif; font-size: 14px; margin: 0 0 14px; }
+.cb-label { font-size: 11px; margin: 0 0 10px; color: var(--cb-muted); }
+
+/* ---------- Flowers ---------- */
+.cb-flowers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.cb-flower {
+    border: 1px solid #f0cfdb;
+    border-radius: 10px;
+    padding: 14px 8px 10px;
+    text-align: center;
+    background: #fff;
+    transition: .2s;
+}
+.cb-flower.selected { border: 2px solid var(--cb-burgundy); background: #fdf3f7; }
+.cb-flower-icon { width: 26px; height: 26px; border-radius: 50%; margin: 0 auto 8px; }
+.cb-icon-mawar { background: radial-gradient(circle at 35% 35%, #fff 0 12%, #8b2547 14%); }
+.cb-icon-lily  { background: #f4a8c0; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
+.cb-icon-tulip { background: #ea8fb4; }
+.cb-icon-baby  { background: #fbeaf0; border: 1px solid #f0cfdb; }
+.cb-flower-name { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 11px; }
+.cb-flower-price { font-size: 9.5px; font-weight: 600; margin: 2px 0 8px; color: var(--cb-burgundy); }
+
+.cb-qty {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--cb-pink-soft); border-radius: 20px; padding: 3px 8px;
+    font-size: 10px; font-weight: 700;
+}
+.cb-qty button {
+    border: 0; background: transparent; cursor: pointer;
+    font-size: 12px; color: var(--cb-burgundy); width: 16px; line-height: 1;
+}
+.cb-qty .qty-value { min-width: 12px; }
+
+/* ---------- Theme ---------- */
+.cb-theme { display: flex; gap: 60px; flex-wrap: wrap; }
+.cb-swatches { display: flex; gap: 10px; }
+.cb-swatch {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 1px solid #e3c5d1; cursor: pointer; padding: 0; position: relative;
+}
+.cb-swatch.active { outline: 2px solid var(--cb-burgundy); outline-offset: 3px; }
+.cb-ribbons { display: flex; gap: 10px; }
+.cb-ribbon {
+    border: 1px solid #f0cfdb; background: #fff; border-radius: 20px;
+    padding: 8px 20px; font-size: 10px; font-weight: 700; cursor: pointer;
+    color: var(--cb-burgundy);
+}
+.cb-ribbon.active { background: linear-gradient(90deg, #8b2547, #5e1530); color: #fff; border-color: transparent; }
+
+/* ---------- Card ---------- */
+.cb-card-input {
+    background: var(--cb-pink-soft); border: 1px solid #f0cfdb;
+    border-radius: 8px; padding: 10px 14px;
+}
+.cb-card-input textarea,
+.cb-card-input input {
+    width: 100%; border: 0; background: transparent; outline: none; resize: none;
+    font-family: inherit; color: var(--cb-text);
+}
+.cb-card-input textarea { font-size: 11.5px; font-weight: 600; }
+.cb-card-input input { font-size: 10px; color: var(--cb-muted); margin-top: 2px; }
+
+/* ---------- Total ---------- */
+.cb-total {
+    background: linear-gradient(135deg, #8b2547, #5e1530);
+    border-radius: 14px; padding: 22px 28px; color: #fff;
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+}
+.cb-total-label { font-size: 11px; opacity: .85; }
+.cb-total-row { display: flex; align-items: baseline; gap: 12px; margin-top: 4px; }
+.cb-total-row strong { font-size: 24px; font-weight: 700; }
+.cb-total-row small { font-size: 9px; opacity: .8; }
+.cb-btn-cart {
+    background: #fff; color: var(--cb-burgundy); border: 0; border-radius: 30px;
+    padding: 14px 40px; font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: transform .15s;
+}
+.cb-btn-cart:hover { transform: translateY(-1px); }
+.cb-error { color: #c0173f; font-size: 12px; margin-top: 10px; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 992px) {
+    .cb-layout { grid-template-columns: 1fr; }
+    .cb-preview-card { position: static; }
+    .cb-flowers { grid-template-columns: repeat(2, 1fr); }
+    .cb-total { flex-direction: column; align-items: stretch; text-align: center; }
+    .cb-total-row { justify-content: center; flex-wrap: wrap; }
+}

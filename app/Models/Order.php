@@ -14,8 +14,17 @@ class Order extends Model
     const UPDATED_AT = 'diubah_pada';
 
     protected $fillable = [
-        'no_invoice', 'id_user', 'metode_pembayaran', 'status_pembayaran',
-        'status_pesanan', 'total_harga', 'bukti_pembayaran', 'dibayar_pada',
+        'no_invoice',
+        'id_user',
+        'metode_pembayaran',
+        'jenis_pengambilan',
+        'alamat_tujuan',
+        'status_pembayaran',
+        'status_pesanan',
+        'total_harga',
+        'jumlah_dp',
+        'bukti_pembayaran',
+        'dibayar_pada',
         'jadwal_pengambilan',
     ];
 
@@ -32,6 +41,13 @@ class Order extends Model
         return $this->belongsTo(User::class, 'id_user', 'id_user');
     }
 
+    // Tabel pelanggan sudah dihapus. Data pelanggan sekarang adalah akun di tabel users,
+    // jadi relasi ini menunjuk ke User (sama dengan user()) supaya kode lama tetap jalan.
+    public function pelanggan(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'id_user', 'id_user');
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class, 'id_order', 'id_order');
@@ -40,5 +56,26 @@ class Order extends Model
     public function statusHistory(): HasMany
     {
         return $this->hasMany(OrderStatusHistory::class, 'id_order', 'id_order');
+    }
+
+    // Data pelanggan untuk tabel daftar pesanan. Pesanan yang dibuat admin di toko tanpa akun tidak punya id_user, tampil "-".
+    public function getNamaPelangganAttribute(): string
+    {
+        return $this->user->nama ?? '-';
+    }
+
+    public function getEmailPelangganAttribute(): string
+    {
+        return $this->user->email ?? '-';
+    }
+
+    public function getKontakPelangganAttribute(): string
+    {
+        return $this->user->nmr_telepon ?? '-';
+    }
+
+    public function getKategoriPelangganAttribute(): ?string
+    {
+        return $this->user->kategori_pelanggan ?? null;
     }
 }

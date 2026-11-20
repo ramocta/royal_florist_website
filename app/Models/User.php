@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -12,26 +11,33 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['nama', 'email', 'password', 'nmr_telepon', 'alamat', 'foto_profil', 'status'])]
+#[Fillable([
+    'nama',
+    'email',
+    'password',
+    'nmr_telepon',
+    'alamat',
+    'foto_profil',
+    'status',
+    'role',
+    'jenis_kelamin',
+    'umur',
+    'foto',
+])]
 #[Hidden(['password'])]
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $primaryKey = 'id_user';
 
     public $timestamps = false;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'password' => 'hashed',
+            'umur'     => 'integer',
         ];
     }
 
