@@ -576,15 +576,6 @@
                         </div>
                     </form>
 
-                    {{-- @if($user->foto_profil)
-                    <form action="{{ route('pelanggan.profile.deletePhoto') ?? '#' }}" method="POST" class="mt-3">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="text-danger bg-transparent border-0 p-0 small fw-semibold" style="cursor: pointer;">
-                            <i class="bi bi-trash"></i> Hapus Foto Profil Saat Ini
-                        </button>
-                    </form>
-                    @endif --}}
                 </div>
             </div>
 
