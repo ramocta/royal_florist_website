@@ -6,11 +6,9 @@
     <div class="head">
         <div>
             <h1>Produk Baru</h1>
-            <p class="sub">Isi data produk yang akan tampil di katalog toko.</p>
+            <p class="sub">Tambahkan satu atau beberapa produk sekaligus. Foto boleh dikosongkan dan diunggah nanti.</p>
         </div>
     </div>
-    <div class="card">
-        @include('admin.produk-form', ['action' => route('admin.produk.store')])
-    </div>
+    @include('admin.produk-form-banyak')
 </div>
 @endsection

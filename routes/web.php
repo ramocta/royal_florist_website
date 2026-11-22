@@ -3,6 +3,7 @@
 // Use For Admin
 use App\Http\Controllers\admin\DashboardController;
 use App\Http\Controllers\admin\KaryawanController;
+use App\Http\Controllers\admin\KategoriController;
 use App\Http\Controllers\admin\LaporanPenjualanController;
 use App\Http\Controllers\admin\PelangganController;
 use App\Http\Controllers\admin\PesananController;
@@ -80,6 +81,12 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::get('produk/{produk}/edit', [ProdukController::class, 'edit'])->name('produk.edit');
         Route::put('produk/{produk}', [ProdukController::class, 'update'])->name('produk.update');
         Route::delete('produk/{produk}', [ProdukController::class, 'destroy'])->name('produk.destroy');
+
+        // Kategori
+        Route::get('kategori/data', [KategoriController::class, 'data'])->name('kategori.data');
+        Route::post('kategori', [KategoriController::class, 'store'])->name('kategori.store');
+        Route::put('kategori/{kategori}', [KategoriController::class, 'update'])->name('kategori.update');
+        Route::delete('kategori/{kategori}', [KategoriController::class, 'destroy'])->name('kategori.destroy');
 
         // Management Stock Produk
         Route::get('/stok', [StockController::class, 'index'])->name('stok.index');
