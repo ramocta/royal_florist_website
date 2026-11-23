@@ -108,10 +108,14 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::delete('pelanggan/{pelanggan}', [PelangganController::class, 'destroy'])->name('pelanggan.destroy');
 
         // Pesanan
+                // Pesanan
         Route::get('pesanan', [PesananController::class, 'index'])->name('pesanan.index');
         Route::get('pesanan/export', [PesananController::class, 'export'])->name('pesanan.export');
         Route::get('pesanan/create', [PesananController::class, 'create'])->name('pesanan.create');
         Route::post('pesanan', [PesananController::class, 'store'])->name('pesanan.store');
+        Route::get('pesanan/{order}/edit', [PesananController::class, 'edit'])->whereNumber('order')->name('pesanan.edit');
+        Route::put('pesanan/{order}', [PesananController::class, 'update'])->whereNumber('order')->name('pesanan.update');
+        Route::delete('pesanan/{order}', [PesananController::class, 'destroy'])->whereNumber('order')->name('pesanan.destroy');
 
         // Admin Profil
         Route::get('profil', [ProfilController::class, 'index'])->name('profil');

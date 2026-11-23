@@ -1,13 +1,19 @@
 @extends('layouts.admin')
 
-@section('title', 'Pesanan Baru')
+@section('title', isset($order) ? 'Edit Pesanan' : 'Pesanan Baru')
 
 @section('content')
 @php
     $input = 'w-full rounded-xl border border-pinkline bg-white px-4 py-2.5 text-sm focus:border-maroon focus:outline-none focus:ring-1 focus:ring-maroon';
     $label = 'mb-1 block text-sm font-medium text-maroon';
-    $mode = old('mode_pelanggan', request('mode', 'ada'));
-    $itemsLama = old('items', [['id_product' => '', 'jumlah' => 1]]);
+
+    // Satu form untuk Pesanan Baru dan Edit Pesanan ($order terisi = mode edit)
+    $edit = isset($order);
+    $mode = old('mode_pelanggan', $edit ? ($order->id_user ? 'ada' : 'tanpa') : request('mode', 'ada'));
+    $itemsLama = old('items', $edit
+        ? $order->items->map(fn ($it) => ['id_product' => $it->id_product, 'jumlah' => $it->jumlah])->values()->all()
+        : [['id_product' => '', 'jumlah' => 1]]);
+    $nilai = fn ($kolom, $bawaan = null) => old($kolom, $edit ? ($order->{$kolom} ?? $bawaan) : $bawaan);
 
     $statusPesanan = [
         'menunggu_pembayaran' => 'Menunggu Pembayaran', 'menunggu_dikonfirmasi' => 'Menunggu Dikonfirmasi',
@@ -28,19 +34,24 @@
 
 <div class="max-w-3xl">
     <a href="{{ route('admin.pesanan.index') }}" class="text-sm text-maroon hover:underline">&larr; Kembali ke daftar pesanan</a>
-    <h1 class="mt-2 font-display text-3xl font-semibold text-maroon">Pesanan Baru</h1>
+    <h1 class="mt-2 font-display text-3xl font-semibold text-maroon">
+        {{ $edit ? 'Edit Pesanan #' . $order->no_invoice : 'Pesanan Baru' }}
+    </h1>
 
-    <form id="formPesanan" method="POST" action="{{ route('admin.pesanan.store') }}" class="mt-6 space-y-5 rounded-2xl border border-pinkline p-6">
+    <form id="formPesanan" method="POST"
+          action="{{ $edit ? route('admin.pesanan.update', $order->id_order) : route('admin.pesanan.store') }}"
+          class="mt-6 space-y-5 rounded-2xl border border-pinkline p-6">
         @csrf
+        @if ($edit) @method('PUT') @endif
 
         {{-- PELANGGAN --}}
         <div id="blokPelanggan" class="rounded-2xl border border-pinkline p-4">
             <p class="mb-2 text-sm font-medium text-maroon">Pelanggan</p>
 
             <div class="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-                @foreach (['ada' => 'Pilih pelanggan', 'baru' => 'Tambah pelanggan baru + pesanan', 'tanpa' => 'Tanpa data pelanggan'] as $nilai => $teks)
+                @foreach (['ada' => 'Pilih pelanggan', 'baru' => 'Tambah pelanggan baru + pesanan', 'tanpa' => 'Tanpa data pelanggan'] as $nilaiMode => $teks)
                     <label class="flex items-center gap-2">
-                        <input type="radio" name="mode_pelanggan" value="{{ $nilai }}" @checked($mode === $nilai) class="accent-maroon"> {{ $teks }}
+                        <input type="radio" name="mode_pelanggan" value="{{ $nilaiMode }}" @checked($mode === $nilaiMode) class="accent-maroon"> {{ $teks }}
                     </label>
                 @endforeach
             </div>
@@ -49,7 +60,7 @@
                 <select name="id_user" class="{{ $input }}">
                     <option value="">-- Pilih pelanggan --</option>
                     @foreach ($pelangganList as $p)
-                        <option value="{{ $p->id_user }}" @selected((string) old('id_user') === (string) $p->id_user)>
+                        <option value="{{ $p->id_user }}" @selected((string) old('id_user', $edit ? $order->id_user : request('id_user')) === (string) $p->id_user)>
                             {{ $p->nama }} &middot; {{ $p->email }}{{ $p->nmr_telepon ? ' · ' . $p->nmr_telepon : '' }}
                         </option>
                     @endforeach
@@ -101,41 +112,41 @@
                 <div>
                     <label for="metode_pembayaran" class="{{ $label }}">Metode Pembayaran</label>
                     <select id="metode_pembayaran" name="metode_pembayaran" class="{{ $input }}">
-                        @foreach ($metode as $k => $v) <option value="{{ $k }}" @selected(old('metode_pembayaran', 'bayar_di_toko') === $k)>{{ $v }}</option> @endforeach
+                        @foreach ($metode as $k => $v) <option value="{{ $k }}" @selected($nilai('metode_pembayaran', 'bayar_di_toko') === $k)>{{ $v }}</option> @endforeach
                     </select>
                     @error('metode_pembayaran') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label for="status_pembayaran" class="{{ $label }}">Status Pembayaran</label>
                     <select id="status_pembayaran" name="status_pembayaran" class="{{ $input }}">
-                        @foreach ($bayar as $k => $v) <option value="{{ $k }}" @selected(old('status_pembayaran', 'belum_dibayar') === $k)>{{ $v }}</option> @endforeach
+                        @foreach ($bayar as $k => $v) <option value="{{ $k }}" @selected($nilai('status_pembayaran', 'belum_dibayar') === $k)>{{ $v }}</option> @endforeach
                     </select>
                     @error('status_pembayaran') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
                 <div id="blokDp" class="sm:col-span-2">
                     <label for="jumlah_dp" class="{{ $label }}">Jumlah DP (Rp)</label>
-                    <input id="jumlah_dp" type="number" min="1" name="jumlah_dp" value="{{ old('jumlah_dp') }}" class="{{ $input }}">
+                    <input id="jumlah_dp" type="number" min="1" name="jumlah_dp" value="{{ old('jumlah_dp', $edit && $order->jumlah_dp ? (int) $order->jumlah_dp : '') }}" class="{{ $input }}">
                     @error('jumlah_dp') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label for="status_pesanan" class="{{ $label }}">Status Pesanan</label>
                     <select id="status_pesanan" name="status_pesanan" class="{{ $input }}">
-                        @foreach ($statusPesanan as $k => $v) <option value="{{ $k }}" @selected(old('status_pesanan', 'menunggu_dikonfirmasi') === $k)>{{ $v }}</option> @endforeach
+                        @foreach ($statusPesanan as $k => $v) <option value="{{ $k }}" @selected($nilai('status_pesanan', 'menunggu_dikonfirmasi') === $k)>{{ $v }}</option> @endforeach
                     </select>
                     @error('status_pesanan') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label for="jadwal_pengambilan" class="{{ $label }}">Jadwal Pengiriman</label>
-                    <input id="jadwal_pengambilan" type="datetime-local" name="jadwal_pengambilan" value="{{ old('jadwal_pengambilan') }}" class="{{ $input }}">
+                    <input id="jadwal_pengambilan" type="datetime-local" name="jadwal_pengambilan" value="{{ old('jadwal_pengambilan', $edit ? $order->jadwal_pengambilan?->format('Y-m-d\\TH:i') : '') }}" class="{{ $input }}">
                     @error('jadwal_pengambilan') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
             </div>
 
-            <p class="text-xs text-neutral-600">Total harga dihitung otomatis dari harga produk x jumlah. Stok berkurang otomatis hanya untuk produk yang dihitung per stok. Untuk pembayaran DP, status pembayaran otomatis Proses sampai dilunasi.</p>
+            <p class="text-xs text-neutral-600">Total harga dihitung otomatis dari harga produk x jumlah.@if ($edit) Saat disimpan, stok dari item lama dikembalikan lalu dihitung ulang dari item yang baru.@endif Stok berkurang otomatis hanya untuk produk yang dihitung per stok. Untuk pembayaran DP, status pembayaran otomatis Proses sampai dilunasi.</p>
         </div>
 
         <div class="flex gap-2 pt-1">
-            <button type="submit" id="tombolSimpan" class="rounded-xl bg-maroon px-5 py-2.5 text-sm font-medium text-white hover:opacity-90">Simpan Pesanan</button>
+            <button type="submit" id="tombolSimpan" class="rounded-xl bg-maroon px-5 py-2.5 text-sm font-medium text-white hover:opacity-90">{{ $edit ? 'Simpan Perubahan' : 'Simpan Pesanan' }}</button>
             <a href="{{ route('admin.pesanan.index') }}" class="rounded-xl bg-pinkcard px-5 py-2.5 text-sm font-medium text-maroon hover:bg-pinkline">Batal</a>
         </div>
     </form>

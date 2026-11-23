@@ -285,8 +285,130 @@ class PesananController extends Controller
     // CREATE: simpan
     public function store(Request $request)
     {
+        $data = $this->validasi($request);
 
-        $data = $request->validate([
+        $order = DB::transaction(function () use ($data) {
+            $idUser = $this->tentukanPelanggan($data);
+
+            [$total, $baris]    = $this->susunItem($data['items']);
+            [$dp, $statusBayar] = $this->hitungPembayaran($data, $total);
+
+            $order = Order::create([
+                'no_invoice'         => $this->buatInvoice(),
+                'id_user'            => $idUser,
+                'metode_pembayaran'  => $data['metode_pembayaran'],
+                'status_pembayaran'  => $statusBayar,
+                'status_pesanan'     => $data['status_pesanan'],
+                'total_harga'        => $total,
+                'jumlah_dp'          => $dp,
+                'dibayar_pada'       => ($statusBayar === 'lunas' || $dp) ? now() : null,
+                'jadwal_pengambilan' => $data['jadwal_pengambilan'] ?? null,
+            ]);
+
+            $order->items()->createMany($baris);
+
+            OrderStatusHistory::create([
+                'id_order'       => $order->id_order,
+                'status_pesanan' => $order->status_pesanan,
+                'catatan'        => 'Pesanan dibuat oleh admin.',
+                'diubah_oleh'    => auth()->id(), // null kalau login belum dipasang
+            ]);
+
+            return $order;
+        });
+
+        return redirect()->route('admin.pesanan.index')
+            ->with('success', "Pesanan #{$order->no_invoice} berhasil dibuat.");
+    }
+
+    // UPDATE: tampilkan form yang sama dengan Pesanan Baru, tapi terisi data pesanan
+    public function edit(Order $order)
+    {
+        $order->load('items');
+        $idLama = $order->items->pluck('id_product')->all();
+
+        // Produk yang sudah ada di pesanan tetap muncul di pilihan walau kini tidak tersedia
+        $produk = Product::with('subcategory')
+            ->where(fn ($q) => $q->where('is_active', true)->orWhereIn('id_product', $idLama))
+            ->orderBy('nama_produk')->get()
+            ->filter(fn ($p) => $p->status === 'Tersedia' || in_array($p->id_product, $idLama))
+            ->values();
+
+        $pelangganList = User::where('role', 'pelanggan')->orderBy('nama')->get(['id_user', 'nama', 'email', 'nmr_telepon']);
+
+        return view('admin.pesanan-create', compact('produk', 'pelangganList', 'order'));
+    }
+
+    // UPDATE: simpan perubahan. Stok lama dikembalikan dulu, lalu dihitung ulang dari item yang baru.
+    public function update(Request $request, Order $order)
+    {
+        $data = $this->validasi($request);
+
+        DB::transaction(function () use ($data, $order) {
+            $order = Order::with('items')->lockForUpdate()->findOrFail($order->id_order);
+
+            // Harga produk yang sudah ada di pesanan tetap memakai harga saat pesanan dibuat
+            $hargaLama = $order->items->mapWithKeys(fn ($it) => [$it->id_product => (float) $it->harga_satuan])->all();
+
+            $this->kembalikanStok($order);
+            $order->items()->delete();
+
+            $idUser = $this->tentukanPelanggan($data);
+
+            [$total, $baris]    = $this->susunItem($data['items'], $hargaLama);
+            [$dp, $statusBayar] = $this->hitungPembayaran($data, $total);
+
+            $statusLama = $order->status_pesanan;
+
+            $order->update([
+                'id_user'            => $idUser,
+                'metode_pembayaran'  => $data['metode_pembayaran'],
+                'status_pembayaran'  => $statusBayar,
+                'status_pesanan'     => $data['status_pesanan'],
+                'total_harga'        => $total,
+                'jumlah_dp'          => $dp,
+                'dibayar_pada'       => ($statusBayar === 'lunas' || $dp) ? ($order->dibayar_pada ?? now()) : null,
+                'jadwal_pengambilan' => $data['jadwal_pengambilan'] ?? null,
+            ]);
+
+            $order->items()->createMany($baris);
+
+            if ($statusLama !== $order->status_pesanan) {
+                OrderStatusHistory::create([
+                    'id_order'       => $order->id_order,
+                    'status_pesanan' => $order->status_pesanan,
+                    'catatan'        => 'Pesanan diubah oleh admin.',
+                    'diubah_oleh'    => auth()->id(),
+                ]);
+            }
+        });
+
+        return redirect()->route('admin.pesanan.index')
+            ->with('success', "Pesanan #{$order->no_invoice} berhasil diperbarui.");
+    }
+
+    // DELETE: hapus pesanan beserta item dan riwayat statusnya, stok dikembalikan
+    public function destroy(Order $order)
+    {
+        $noInvoice = $order->no_invoice;
+
+        DB::transaction(function () use ($order) {
+            $order = Order::with('items')->lockForUpdate()->findOrFail($order->id_order);
+
+            $this->kembalikanStok($order);
+            $order->items()->delete();
+            $order->statusHistory()->delete(); // tabel riwayat tidak punya ON DELETE CASCADE
+            $order->delete();
+        });
+
+        return redirect()->route('admin.pesanan.index')
+            ->with('success', "Pesanan #{$noInvoice} berhasil dihapus.");
+    }
+
+    // Aturan validasi form pesanan (dipakai store dan update)
+    private function validasi(Request $request): array
+    {
+        return $request->validate([
             'metode_pembayaran'  => ['required', Rule::in(self::METODE)],
             'jumlah_dp'          => ['nullable', 'required_if:metode_pembayaran,DP', 'integer', 'min:1'],
             'status_pembayaran'  => ['required', Rule::in(['belum_dibayar', 'proses', 'lunas'])],
@@ -334,83 +456,84 @@ class PesananController extends Controller
             'pelanggan_alamat'   => 'Alamat pelanggan',
             'pelanggan_password' => 'Password',
         ]);
+    }
 
-        $order = DB::transaction(function () use ($data) {
-            $idUser = match ($data['mode_pelanggan'] ?? 'tanpa') {
-                'ada'   => (int) $data['id_user'],
-                'baru'  => $this->buatPelanggan($data),
-                default => null, // pesanan di toko tanpa data pelanggan
-            };
+    // Pelanggan: pilih yang sudah ada, buat akun baru, atau tanpa data (beli langsung di toko)
+    private function tentukanPelanggan(array $data): ?int
+    {
+        return match ($data['mode_pelanggan'] ?? 'tanpa') {
+            'ada'   => (int) $data['id_user'],
+            'baru'  => $this->buatPelanggan($data),
+            default => null,
+        };
+    }
 
-            $total = 0;
-            $baris = [];
+    // Susun baris item dan hitung total. Stok dikurangi hanya untuk produk yang dihitung per stok.
+    // $hargaLama (id_product => harga) menjaga harga lama untuk produk yang sudah ada di pesanan saat diedit.
+    private function susunItem(array $items, array $hargaLama = []): array
+    {
+        $total = 0;
+        $baris = [];
 
-            foreach ($data['items'] as $i => $item) {
-                $produk = Product::with('subcategory')->lockForUpdate()->find($item['id_product']);
+        foreach ($items as $i => $item) {
+            $produk = Product::with('subcategory')->lockForUpdate()->find($item['id_product']);
+            $sudahAda = array_key_exists($produk->id_product, $hargaLama);
 
-                if ($produk->status !== 'Tersedia') {
-                    throw ValidationException::withMessages([
-                        "items.$i.id_product" => "{$produk->nama_produk} sedang tidak tersedia.",
-                    ]);
-                }
-
-                // Stok hanya dihitung untuk jenis produk yang memakai stok (Buket Fresh Flower)
-                if ($produk->pakai_stok) {
-                    if ($produk->stok < $item['jumlah']) {
-                        throw ValidationException::withMessages([
-                            "items.$i.jumlah" => "Stok {$produk->nama_produk} tinggal {$produk->stok}.",
-                        ]);
-                    }
-                    $produk->decrement('stok', $item['jumlah']);
-                }
-
-                $total += $produk->harga * $item['jumlah'];
-                $baris[] = [
-                    'id_product'   => $produk->id_product,
-                    'jumlah'       => $item['jumlah'],
-                    'harga_satuan' => $produk->harga, // harga dikunci saat pesanan dibuat
-                ];
+            if (! $sudahAda && $produk->status !== 'Tersedia') {
+                throw ValidationException::withMessages([
+                    "items.$i.id_product" => "{$produk->nama_produk} sedang tidak tersedia.",
+                ]);
             }
 
-            // Pembayaran DP: nominal harus lebih kecil dari total, status pembayaran otomatis "proses" (belum lunas)
-            $dp = null;
-            $statusBayar = $data['status_pembayaran'];
-            if ($data['metode_pembayaran'] === 'DP') {
-                $dp = (int) $data['jumlah_dp'];
-                if ($dp >= $total) {
+            if ($produk->pakai_stok) {
+                if ($produk->stok < $item['jumlah']) {
                     throw ValidationException::withMessages([
-                        'jumlah_dp' => 'Jumlah DP harus lebih kecil dari total harga (Rp ' . number_format($total, 0, ',', '.') . ').',
+                        "items.$i.jumlah" => "Stok {$produk->nama_produk} tinggal {$produk->stok}.",
                     ]);
                 }
-                $statusBayar = 'proses';
+                $produk->decrement('stok', $item['jumlah']);
             }
 
-            $order = Order::create([
-                'no_invoice'         => $this->buatInvoice(),
-                'id_user'            => $idUser,
-                'metode_pembayaran'  => $data['metode_pembayaran'],
-                'status_pembayaran'  => $statusBayar,
-                'status_pesanan'     => $data['status_pesanan'],
-                'total_harga'        => $total,
-                'jumlah_dp'          => $dp,
-                'dibayar_pada'       => ($statusBayar === 'lunas' || $dp) ? now() : null,
-                'jadwal_pengambilan' => $data['jadwal_pengambilan'] ?? null,
-            ]);
+            $harga = $hargaLama[$produk->id_product] ?? $produk->harga;
+            $total += $harga * $item['jumlah'];
+            $baris[] = [
+                'id_product'   => $produk->id_product,
+                'jumlah'       => $item['jumlah'],
+                'harga_satuan' => $harga, // harga dikunci saat pesanan dibuat
+            ];
+        }
 
-            $order->items()->createMany($baris);
+        return [$total, $baris];
+    }
 
-            OrderStatusHistory::create([
-                'id_order'       => $order->id_order,
-                'status_pesanan' => $order->status_pesanan,
-                'catatan'        => 'Pesanan dibuat oleh admin.',
-                'diubah_oleh'    => auth()->id(), // null kalau login belum dipasang
-            ]);
+    // Pembayaran DP: nominal harus lebih kecil dari total, status pembayaran otomatis "proses"
+    private function hitungPembayaran(array $data, $total): array
+    {
+        $dp = null;
+        $statusBayar = $data['status_pembayaran'];
 
-            return $order;
-        });
+        if ($data['metode_pembayaran'] === 'DP') {
+            $dp = (int) $data['jumlah_dp'];
+            if ($dp >= $total) {
+                throw ValidationException::withMessages([
+                    'jumlah_dp' => 'Jumlah DP harus lebih kecil dari total harga (Rp ' . number_format($total, 0, ',', '.') . ').',
+                ]);
+            }
+            $statusBayar = 'proses';
+        }
 
-        return redirect()->route('admin.pesanan.index')
-            ->with('success', "Pesanan #{$order->no_invoice} berhasil dibuat.");
+        return [$dp, $statusBayar];
+    }
+
+    // Kembalikan stok item pesanan (hanya produk yang dihitung per stok)
+    private function kembalikanStok(Order $order): void
+    {
+        foreach ($order->items as $it) {
+            $produk = Product::with('subcategory')->lockForUpdate()->find($it->id_product);
+            if ($produk && $produk->pakai_stok) {
+                $produk->increment('stok', $it->jumlah);
+            }
+        }
     }
 
     private function simpanPelangganSaja(Request $request)
