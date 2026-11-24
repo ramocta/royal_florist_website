@@ -1,0 +1,6 @@
+Simulasi konfirmasi pesanan karyawan Royal Florist.
+Nomor pesanan: RF-001
+Pelanggan: Nadia
+Produk: Bucket bunga
+Status awal: Menunggu konfirmasi
+Status akhir: Pesanan dikonfirmasi
