@@ -1,0 +1,4 @@
+Simulasi pengelolaan stok bucket Royal Florist.
+Stok awal: 20 tangkai.
+Stok masuk: 10 tangkai.
+Stok akhir: 30 tangkai.
