@@ -1,0 +1,6 @@
+Simulasi pengaturan profil toko Royal Florist.
+Nama toko: Royal Florist
+Alamat: Jegles, Begadung, Nganjuk
+Layanan: Bucket, Hantaran, Papan Bunga
+Kontak: Informasi kontak toko
+Status: Profil toko diperbarui
