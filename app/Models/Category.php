@@ -10,7 +10,9 @@ class Category extends Model
     protected $primaryKey = 'id_ctg';
     public $timestamps = false;
 
-    protected $fillable = ['category_name'];
+    protected $fillable = ['category_name', 'pakai_stok'];
+
+    protected $casts = ['pakai_stok' => 'boolean'];
 
     public function subcategories()
     {

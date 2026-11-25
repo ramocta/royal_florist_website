@@ -3,6 +3,7 @@
 // Use For Admin
 use App\Http\Controllers\admin\DashboardController;
 use App\Http\Controllers\admin\KaryawanController;
+use App\Http\Controllers\admin\KategoriController;
 use App\Http\Controllers\admin\LaporanPenjualanController;
 use App\Http\Controllers\admin\PelangganController;
 use App\Http\Controllers\admin\PesananController;
@@ -81,6 +82,12 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::put('produk/{produk}', [ProdukController::class, 'update'])->name('produk.update');
         Route::delete('produk/{produk}', [ProdukController::class, 'destroy'])->name('produk.destroy');
 
+        // Kategori
+        Route::get('kategori/data', [KategoriController::class, 'data'])->name('kategori.data');
+        Route::post('kategori', [KategoriController::class, 'store'])->name('kategori.store');
+        Route::put('kategori/{kategori}', [KategoriController::class, 'update'])->name('kategori.update');
+        Route::delete('kategori/{kategori}', [KategoriController::class, 'destroy'])->name('kategori.destroy');
+
         // Management Stock Produk
         Route::get('/stok', [StockController::class, 'index'])->name('stok.index');
         Route::post('/stok/{id}/adjust', [StockController::class, 'adjust'])->name('stok.adjust');
@@ -101,10 +108,14 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::delete('pelanggan/{pelanggan}', [PelangganController::class, 'destroy'])->name('pelanggan.destroy');
 
         // Pesanan
+                // Pesanan
         Route::get('pesanan', [PesananController::class, 'index'])->name('pesanan.index');
         Route::get('pesanan/export', [PesananController::class, 'export'])->name('pesanan.export');
         Route::get('pesanan/create', [PesananController::class, 'create'])->name('pesanan.create');
         Route::post('pesanan', [PesananController::class, 'store'])->name('pesanan.store');
+        Route::get('pesanan/{order}/edit', [PesananController::class, 'edit'])->whereNumber('order')->name('pesanan.edit');
+        Route::put('pesanan/{order}', [PesananController::class, 'update'])->whereNumber('order')->name('pesanan.update');
+        Route::delete('pesanan/{order}', [PesananController::class, 'destroy'])->whereNumber('order')->name('pesanan.destroy');
 
         // Admin Profil
         Route::get('profil', [ProfilController::class, 'index'])->name('profil');
@@ -118,6 +129,12 @@ Route::middleware(['auth', RoleMiddleware::class . ':admin,karyawan'])
         Route::put('pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
         Route::get('pengaturan/landing', [PengaturanController::class, 'landing'])->name('pengaturan.landing');
         Route::put('pengaturan/landing', [PengaturanController::class, 'updateLanding'])->name('pengaturan.landing.update');
+        Route::post('pengaturan/banner', [PengaturanController::class, 'tambahBanner'])->name('pengaturan.banner.tambah');
+        Route::patch('pengaturan/banner/{banner}/toggle', [PengaturanController::class, 'toggleBanner'])->name('pengaturan.banner.toggle');
+        Route::patch('pengaturan/banner/{banner}/geser', [PengaturanController::class, 'geserBanner'])->name('pengaturan.banner.geser');
+        Route::delete('pengaturan/banner/{banner}', [PengaturanController::class, 'hapusBanner'])->name('pengaturan.banner.hapus');
+        Route::get('pengaturan/qris', [PengaturanController::class, 'qris'])->name('pengaturan.qris');
+        Route::put('pengaturan/qris', [PengaturanController::class, 'updateQris'])->name('pengaturan.qris.update');
     });
 
 /*

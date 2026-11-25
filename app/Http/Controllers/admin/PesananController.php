@@ -5,10 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
-use App\Models\Pelanggan;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Fluent;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -29,8 +33,6 @@ class PesananController extends Controller
     // READ: daftar + statistik + pencarian + filter status
     public function index(Request $request)
     {
-        Pelanggan::sinkronDariUser(); // pelanggan baru dari website otomatis masuk ke tabel Pelanggan
-
         $stat = [
             'total'    => Order::whereMonth('dibuat_pada', now()->month)
                                ->whereYear('dibuat_pada', now()->year)->count(),
@@ -48,15 +50,17 @@ class PesananController extends Controller
         $sumberOrder = $this->queryPesanan($request)->toBase()
             ->select([DB::raw("'order' as tipe"), 'id_order as ref_id', 'dibuat_pada as tgl']);
 
-        $sumberPelanggan = Pelanggan::query()
+        // Pelanggan = akun di tabel users yang berperan "pelanggan"
+        $sumberPelanggan = User::query()
+            ->where('role', 'pelanggan')
             ->whereNotExists(fn ($w) => $w->select(DB::raw(1))->from('orders')
-                ->whereColumn('orders.id_user', 'pelanggan.id_user'))
+                ->whereColumn('orders.id_user', 'users.id_user'))
             ->when($kata, fn ($w, $k) => $w->where(fn ($x) => $x
                 ->where('nama', 'like', "%{$k}%")
                 ->orWhere('email', 'like', "%{$k}%")
-                ->orWhere('kontak', 'like', "%{$k}%")))
+                ->orWhere('nmr_telepon', 'like', "%{$k}%")))
             ->toBase()
-            ->select([DB::raw("'pelanggan' as tipe"), 'id as ref_id', 'created_at as tgl']);
+            ->select([DB::raw("'pelanggan' as tipe"), 'id_user as ref_id', 'created_at as tgl']);
 
         $tanggal = $this->tanggalFilter($request);
 
@@ -76,11 +80,22 @@ class PesananController extends Controller
 
         // Ambil data lengkap hanya untuk baris di halaman ini
         $baris   = $pesanan->getCollection();
-        $orders  = Order::with(['pelanggan', 'user', 'items.product'])
+        $orders  = Order::with(['user', 'items.product'])
             ->whereIn('id_order', $baris->where('tipe', 'order')->pluck('ref_id'))
             ->get()->keyBy('id_order');
-        $semuaPelanggan = Pelanggan::whereIn('id', $baris->where('tipe', 'pelanggan')->pluck('ref_id'))
-            ->get()->keyBy('id');
+
+        // Nama properti disamakan dengan model Pelanggan lama (kontak, kategori) supaya tampilan daftar tidak berubah
+        $semuaPelanggan = User::whereIn('id_user', $baris->where('tipe', 'pelanggan')->pluck('ref_id'))
+            ->get()
+            ->mapWithKeys(fn ($u) => [$u->id_user => new Fluent([
+                'id'         => $u->id_user,
+                'id_user'    => $u->id_user,
+                'nama'       => $u->nama,
+                'email'      => $u->email,
+                'kontak'     => $u->nmr_telepon,
+                'kategori'   => $u->kategori_pelanggan,
+                'created_at' => $u->created_at ? Carbon::parse($u->created_at) : null,
+            ])]);
 
         $pesanan->setCollection($baris->map(fn ($r) => $r->tipe === 'order'
             ? ['order' => $orders[$r->ref_id] ?? null, 'pelanggan' => null]
@@ -124,10 +139,10 @@ class PesananController extends Controller
                 $i + 1,
                 (string) $o->no_invoice,
                 $o->dibuat_pada ? $o->dibuat_pada->format('d-m-Y H:i') : '-',
-                $o->nama_pelanggan,
-                $o->email_pelanggan,
-                (string) $o->kontak_pelanggan,
-                $o->kategori_pelanggan ?? '-',
+                $o->user?->nama ?? '-',
+                $o->user?->email ?? '-',
+                (string) ($o->user?->nmr_telepon ?? '-'),
+                $o->user?->kategori_pelanggan ?? '-',
                 $item,
                 $o->jadwal_pengambilan ? $o->jadwal_pengambilan->format('d-m-Y H:i') : '-',
                 $metode[$o->metode_pembayaran] ?? $o->metode_pembayaran,
@@ -235,13 +250,12 @@ class PesananController extends Controller
     // Query dasar daftar pesanan, dipakai bersama oleh index dan export
     private function queryPesanan(Request $request)
     {
-        return Order::with(['pelanggan', 'user', 'items.product'])
+        return Order::with(['user', 'items.product'])
             ->when($request->q, fn ($query, $q) => $query->where(function ($w) use ($q) {
                 $w->where('no_invoice', 'like', "%{$q}%")
-                  ->orWhereHas('pelanggan', fn ($p) => $p->where('nama', 'like', "%{$q}%")
+                  ->orWhereHas('user', fn ($u) => $u->where('nama', 'like', "%{$q}%")
                         ->orWhere('email', 'like', "%{$q}%")
-                        ->orWhere('kontak', 'like', "%{$q}%"))
-                  ->orWhereHas('user', fn ($u) => $u->where('nama', 'like', "%{$q}%"));
+                        ->orWhere('nmr_telepon', 'like', "%{$q}%"));
             }))
             ->when($request->status, fn ($query, $s) => $query->where('status_pesanan', $s))
             ->when($this->tanggalFilter($request), fn ($query, $t) => $query->whereDate('jadwal_pengambilan', $t));
@@ -263,88 +277,25 @@ class PesananController extends Controller
             ->filter(fn ($p) => $p->status === 'Tersedia')
             ->values();
 
-        return view('admin.pesanan-create', compact('produk'));
+        $pelangganList = User::where('role', 'pelanggan')->orderBy('nama')->get(['id_user', 'nama', 'email', 'nmr_telepon']);
+
+        return view('admin.pesanan-create', compact('produk', 'pelangganList'));
     }
 
     // CREATE: simpan
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'metode_pembayaran'  => ['required', Rule::in(self::METODE)],
-            'jumlah_dp'          => ['nullable', 'required_if:metode_pembayaran,DP', 'integer', 'min:1'],
-            'status_pembayaran'  => ['required', Rule::in(['belum_dibayar', 'proses', 'lunas'])],
-            'status_pesanan'     => ['required', Rule::in(self::STATUS_PESANAN)],
-            'jadwal_pengambilan' => 'nullable|date',
-            'items'              => 'required|array|min:1',
-            'items.*.id_product' => ['required', 'distinct', Rule::exists('products', 'id_product')],
-            'items.*.jumlah'     => 'required|integer|min:1',
-        ], [
-            'required'    => ':attribute wajib diisi.',
-            'required_if' => ':attribute wajib diisi untuk pembayaran DP.',
-            'exists'      => ':attribute tidak valid.',
-            'in'          => ':attribute tidak valid.',
-            'integer'     => ':attribute harus berupa angka.',
-            'min'         => ':attribute minimal :min.',
-            'distinct'    => 'Produk tidak boleh dipilih dua kali.',
-            'date'        => 'Format tanggal tidak valid.',
-        ], [
-            'metode_pembayaran'  => 'Metode pembayaran',
-            'jumlah_dp'          => 'Jumlah DP',
-            'status_pembayaran'  => 'Status pembayaran',
-            'status_pesanan'     => 'Status pesanan',
-            'jadwal_pengambilan' => 'Jadwal pengiriman',
-            'items'              => 'Item produk',
-            'items.*.id_product' => 'Produk',
-            'items.*.jumlah'     => 'Jumlah',
-        ]);
+        $data = $this->validasi($request);
 
         $order = DB::transaction(function () use ($data) {
-            $total = 0;
-            $baris = [];
+            $idUser = $this->tentukanPelanggan($data);
 
-            foreach ($data['items'] as $i => $item) {
-                $produk = Product::with('subcategory')->lockForUpdate()->find($item['id_product']);
-
-                if ($produk->status !== 'Tersedia') {
-                    throw ValidationException::withMessages([
-                        "items.$i.id_product" => "{$produk->nama_produk} sedang tidak tersedia.",
-                    ]);
-                }
-
-                // Stok hanya dihitung untuk jenis produk yang memakai stok (Buket Fresh Flower)
-                if ($produk->pakai_stok) {
-                    if ($produk->stok < $item['jumlah']) {
-                        throw ValidationException::withMessages([
-                            "items.$i.jumlah" => "Stok {$produk->nama_produk} tinggal {$produk->stok}.",
-                        ]);
-                    }
-                    $produk->decrement('stok', $item['jumlah']);
-                }
-
-                $total += $produk->harga * $item['jumlah'];
-                $baris[] = [
-                    'id_product'   => $produk->id_product,
-                    'jumlah'       => $item['jumlah'],
-                    'harga_satuan' => $produk->harga, // harga dikunci saat pesanan dibuat
-                ];
-            }
-
-            // Pembayaran DP: nominal harus lebih kecil dari total, status pembayaran otomatis "proses" (belum lunas)
-            $dp = null;
-            $statusBayar = $data['status_pembayaran'];
-            if ($data['metode_pembayaran'] === 'DP') {
-                $dp = (int) $data['jumlah_dp'];
-                if ($dp >= $total) {
-                    throw ValidationException::withMessages([
-                        'jumlah_dp' => 'Jumlah DP harus lebih kecil dari total harga (Rp ' . number_format($total, 0, ',', '.') . ').',
-                    ]);
-                }
-                $statusBayar = 'proses';
-            }
+            [$total, $baris]    = $this->susunItem($data['items']);
+            [$dp, $statusBayar] = $this->hitungPembayaran($data, $total);
 
             $order = Order::create([
                 'no_invoice'         => $this->buatInvoice(),
-                'id_user'            => null, // pesanan dari admin (di toko), tanpa akun pelanggan
+                'id_user'            => $idUser,
                 'metode_pembayaran'  => $data['metode_pembayaran'],
                 'status_pembayaran'  => $statusBayar,
                 'status_pesanan'     => $data['status_pesanan'],
@@ -368,6 +319,266 @@ class PesananController extends Controller
 
         return redirect()->route('admin.pesanan.index')
             ->with('success', "Pesanan #{$order->no_invoice} berhasil dibuat.");
+    }
+
+    // UPDATE: tampilkan form yang sama dengan Pesanan Baru, tapi terisi data pesanan
+    public function edit(Order $order)
+    {
+        $order->load('items');
+        $idLama = $order->items->pluck('id_product')->all();
+
+        // Produk yang sudah ada di pesanan tetap muncul di pilihan walau kini tidak tersedia
+        $produk = Product::with('subcategory')
+            ->where(fn ($q) => $q->where('is_active', true)->orWhereIn('id_product', $idLama))
+            ->orderBy('nama_produk')->get()
+            ->filter(fn ($p) => $p->status === 'Tersedia' || in_array($p->id_product, $idLama))
+            ->values();
+
+        $pelangganList = User::where('role', 'pelanggan')->orderBy('nama')->get(['id_user', 'nama', 'email', 'nmr_telepon']);
+
+        return view('admin.pesanan-create', compact('produk', 'pelangganList', 'order'));
+    }
+
+    // UPDATE: simpan perubahan. Stok lama dikembalikan dulu, lalu dihitung ulang dari item yang baru.
+    public function update(Request $request, Order $order)
+    {
+        $data = $this->validasi($request);
+
+        DB::transaction(function () use ($data, $order) {
+            $order = Order::with('items')->lockForUpdate()->findOrFail($order->id_order);
+
+            // Harga produk yang sudah ada di pesanan tetap memakai harga saat pesanan dibuat
+            $hargaLama = $order->items->mapWithKeys(fn ($it) => [$it->id_product => (float) $it->harga_satuan])->all();
+
+            $this->kembalikanStok($order);
+            $order->items()->delete();
+
+            $idUser = $this->tentukanPelanggan($data);
+
+            [$total, $baris]    = $this->susunItem($data['items'], $hargaLama);
+            [$dp, $statusBayar] = $this->hitungPembayaran($data, $total);
+
+            $statusLama = $order->status_pesanan;
+
+            $order->update([
+                'id_user'            => $idUser,
+                'metode_pembayaran'  => $data['metode_pembayaran'],
+                'status_pembayaran'  => $statusBayar,
+                'status_pesanan'     => $data['status_pesanan'],
+                'total_harga'        => $total,
+                'jumlah_dp'          => $dp,
+                'dibayar_pada'       => ($statusBayar === 'lunas' || $dp) ? ($order->dibayar_pada ?? now()) : null,
+                'jadwal_pengambilan' => $data['jadwal_pengambilan'] ?? null,
+            ]);
+
+            $order->items()->createMany($baris);
+
+            if ($statusLama !== $order->status_pesanan) {
+                OrderStatusHistory::create([
+                    'id_order'       => $order->id_order,
+                    'status_pesanan' => $order->status_pesanan,
+                    'catatan'        => 'Pesanan diubah oleh admin.',
+                    'diubah_oleh'    => auth()->id(),
+                ]);
+            }
+        });
+
+        return redirect()->route('admin.pesanan.index')
+            ->with('success', "Pesanan #{$order->no_invoice} berhasil diperbarui.");
+    }
+
+    // DELETE: hapus pesanan beserta item dan riwayat statusnya, stok dikembalikan
+    public function destroy(Order $order)
+    {
+        $noInvoice = $order->no_invoice;
+
+        DB::transaction(function () use ($order) {
+            $order = Order::with('items')->lockForUpdate()->findOrFail($order->id_order);
+
+            $this->kembalikanStok($order);
+            $order->items()->delete();
+            $order->statusHistory()->delete(); // tabel riwayat tidak punya ON DELETE CASCADE
+            $order->delete();
+        });
+
+        return redirect()->route('admin.pesanan.index')
+            ->with('success', "Pesanan #{$noInvoice} berhasil dihapus.");
+    }
+
+    // Aturan validasi form pesanan (dipakai store dan update)
+    private function validasi(Request $request): array
+    {
+        return $request->validate([
+            'metode_pembayaran'  => ['required', Rule::in(self::METODE)],
+            'jumlah_dp'          => ['nullable', 'required_if:metode_pembayaran,DP', 'integer', 'min:1'],
+            'status_pembayaran'  => ['required', Rule::in(['belum_dibayar', 'proses', 'lunas'])],
+            'status_pesanan'     => ['required', Rule::in(self::STATUS_PESANAN)],
+            'jadwal_pengambilan' => 'nullable|date',
+            'items'              => 'required|array|min:1',
+            'items.*.id_product' => ['required', 'distinct', Rule::exists('products', 'id_product')],
+            'items.*.jumlah'     => 'required|integer|min:1',
+            'mode_pelanggan'     => ['nullable', Rule::in(['ada', 'baru', 'tanpa'])],
+            'id_user'            => ['nullable', 'required_if:mode_pelanggan,ada', Rule::exists('users', 'id_user')->where('role', 'pelanggan')],
+            'pelanggan_nama'     => ['nullable', 'required_if:mode_pelanggan,baru', 'string', 'max:100'],
+            'pelanggan_email'    => ['nullable', 'required_if:mode_pelanggan,baru', 'email', 'max:100', 'unique:users,email'],
+            'pelanggan_telepon'  => ['nullable', 'required_if:mode_pelanggan,baru', 'string', 'max:15'],
+            'pelanggan_alamat'   => ['nullable', 'string', 'max:255'],
+            'pelanggan_password' => ['nullable', 'string', 'min:6'],
+        ], [
+            'required'    => ':attribute wajib diisi.',
+            'required_if' => ':attribute wajib diisi untuk pembayaran DP.',
+            'exists'      => ':attribute tidak valid.',
+            'in'          => ':attribute tidak valid.',
+            'integer'     => ':attribute harus berupa angka.',
+            'min'         => ':attribute minimal :min.',
+            'distinct'    => 'Produk tidak boleh dipilih dua kali.',
+            'date'        => 'Format tanggal tidak valid.',
+            'email'       => 'Format email tidak valid.',
+            'unique'      => ':attribute sudah terdaftar.',
+            'max'         => ':attribute terlalu panjang.',
+            'id_user.required_if'            => 'Pilih pelanggan terlebih dahulu.',
+            'pelanggan_nama.required_if'     => 'Nama pelanggan wajib diisi.',
+            'pelanggan_email.required_if'    => 'Email pelanggan wajib diisi.',
+            'pelanggan_telepon.required_if'  => 'No. HP pelanggan wajib diisi.',
+        ], [
+            'metode_pembayaran'  => 'Metode pembayaran',
+            'jumlah_dp'          => 'Jumlah DP',
+            'status_pembayaran'  => 'Status pembayaran',
+            'status_pesanan'     => 'Status pesanan',
+            'jadwal_pengambilan' => 'Jadwal pengiriman',
+            'items'              => 'Item produk',
+            'items.*.id_product' => 'Produk',
+            'items.*.jumlah'     => 'Jumlah',
+            'id_user'            => 'Pelanggan',
+            'pelanggan_nama'     => 'Nama pelanggan',
+            'pelanggan_email'    => 'Email pelanggan',
+            'pelanggan_telepon'  => 'No. HP pelanggan',
+            'pelanggan_alamat'   => 'Alamat pelanggan',
+            'pelanggan_password' => 'Password',
+        ]);
+    }
+
+    // Pelanggan: pilih yang sudah ada, buat akun baru, atau tanpa data (beli langsung di toko)
+    private function tentukanPelanggan(array $data): ?int
+    {
+        return match ($data['mode_pelanggan'] ?? 'tanpa') {
+            'ada'   => (int) $data['id_user'],
+            'baru'  => $this->buatPelanggan($data),
+            default => null,
+        };
+    }
+
+    // Susun baris item dan hitung total. Stok dikurangi hanya untuk produk yang dihitung per stok.
+    // $hargaLama (id_product => harga) menjaga harga lama untuk produk yang sudah ada di pesanan saat diedit.
+    private function susunItem(array $items, array $hargaLama = []): array
+    {
+        $total = 0;
+        $baris = [];
+
+        foreach ($items as $i => $item) {
+            $produk = Product::with('subcategory')->lockForUpdate()->find($item['id_product']);
+            $sudahAda = array_key_exists($produk->id_product, $hargaLama);
+
+            if (! $sudahAda && $produk->status !== 'Tersedia') {
+                throw ValidationException::withMessages([
+                    "items.$i.id_product" => "{$produk->nama_produk} sedang tidak tersedia.",
+                ]);
+            }
+
+            if ($produk->pakai_stok) {
+                if ($produk->stok < $item['jumlah']) {
+                    throw ValidationException::withMessages([
+                        "items.$i.jumlah" => "Stok {$produk->nama_produk} tinggal {$produk->stok}.",
+                    ]);
+                }
+                $produk->decrement('stok', $item['jumlah']);
+            }
+
+            $harga = $hargaLama[$produk->id_product] ?? $produk->harga;
+            $total += $harga * $item['jumlah'];
+            $baris[] = [
+                'id_product'   => $produk->id_product,
+                'jumlah'       => $item['jumlah'],
+                'harga_satuan' => $harga, // harga dikunci saat pesanan dibuat
+            ];
+        }
+
+        return [$total, $baris];
+    }
+
+    // Pembayaran DP: nominal harus lebih kecil dari total, status pembayaran otomatis "proses"
+    private function hitungPembayaran(array $data, $total): array
+    {
+        $dp = null;
+        $statusBayar = $data['status_pembayaran'];
+
+        if ($data['metode_pembayaran'] === 'DP') {
+            $dp = (int) $data['jumlah_dp'];
+            if ($dp >= $total) {
+                throw ValidationException::withMessages([
+                    'jumlah_dp' => 'Jumlah DP harus lebih kecil dari total harga (Rp ' . number_format($total, 0, ',', '.') . ').',
+                ]);
+            }
+            $statusBayar = 'proses';
+        }
+
+        return [$dp, $statusBayar];
+    }
+
+    // Kembalikan stok item pesanan (hanya produk yang dihitung per stok)
+    private function kembalikanStok(Order $order): void
+    {
+        foreach ($order->items as $it) {
+            $produk = Product::with('subcategory')->lockForUpdate()->find($it->id_product);
+            if ($produk && $produk->pakai_stok) {
+                $produk->increment('stok', $it->jumlah);
+            }
+        }
+    }
+
+    private function simpanPelangganSaja(Request $request)
+    {
+        $data = $request->validate([
+            'pelanggan_nama'     => ['required', 'string', 'max:100'],
+            'pelanggan_email'    => ['required', 'email', 'max:100', 'unique:users,email'],
+            'pelanggan_telepon'  => ['required', 'string', 'max:15'],
+            'pelanggan_alamat'   => ['nullable', 'string', 'max:255'],
+            'pelanggan_password' => ['nullable', 'string', 'min:6'],
+        ], [
+            'required' => ':attribute wajib diisi.',
+            'email'    => 'Format email tidak valid.',
+            'unique'   => ':attribute sudah terdaftar.',
+            'max'      => ':attribute terlalu panjang.',
+            'min'      => ':attribute minimal :min karakter.',
+        ], [
+            'pelanggan_nama'     => 'Nama pelanggan',
+            'pelanggan_email'    => 'Email pelanggan',
+            'pelanggan_telepon'  => 'No. HP pelanggan',
+            'pelanggan_alamat'   => 'Alamat pelanggan',
+            'pelanggan_password' => 'Password',
+        ]);
+
+        $this->buatPelanggan($data);
+
+        return redirect()->route('admin.pelanggan.index')
+            ->with('success', "Pelanggan {$data['pelanggan_nama']} berhasil ditambahkan.");
+    }
+
+    // Pelanggan baru dari form pesanan: dibuat sebagai akun di tabel users (kategori otomatis "Baru")
+    private function buatPelanggan(array $data): int
+    {
+        $user = (new User)->forceFill([
+            'nama'        => $data['pelanggan_nama'],
+            'email'       => $data['pelanggan_email'],
+            'nmr_telepon' => $data['pelanggan_telepon'],
+            'alamat'      => $data['pelanggan_alamat'] ?? '-',
+            'password'    => Hash::make($data['pelanggan_password'] ?? Str::random(12)),
+            'role'        => 'pelanggan',
+            'status'      => 'aktif',
+        ]);
+        $user->save();
+
+        return $user->id_user;
     }
 
     // No. invoice: ORD-0001, ORD-0002, ... (kolom no_invoice maksimal 20 karakter)

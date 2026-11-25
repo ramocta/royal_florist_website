@@ -48,10 +48,17 @@ class Product extends Model
         return '#PRD-' . str_pad($this->id_product, 3, '0', STR_PAD_LEFT);
     }
 
-    /** true bila jenis produk ini dihitung per stok (Buket Fresh Flower) */
+    /** true bila produk dihitung per stok: ikut jenis, atau ikut kategori bila tanpa jenis */
     public function getPakaiStokAttribute(): bool
     {
-        return (bool) optional($this->subcategory)->pakai_stok;
+        $sumber = $this->subcategory ?? $this->category;
+
+        return (bool) optional($sumber)->pakai_stok;
+    }
+
+    public function getSatuanAttribute(): string
+    {
+        return $this->id_subctg ? 'tangkai' : 'pcs';
     }
 
     /** Tersedia | Habis | Nonaktif */

@@ -60,6 +60,7 @@ class KatalogController extends Controller
                 'tersedia'   => $p->status === 'Tersedia',
                 'pakai_stok' => $p->pakai_stok,
                 'stok'       => $p->stok,
+                'satuan'     => $p->satuan,
                 'foto_url'   => $p->foto_url,
             ])->values(),
             'pagination' => [

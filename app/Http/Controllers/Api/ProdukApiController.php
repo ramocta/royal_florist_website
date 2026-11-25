@@ -3,21 +3,21 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Category;
 use App\Models\Product;
-use App\Models\Subcategory;
+use App\Services\KategoriService;
+use App\Services\ProdukService;
 use App\Services\StockManagementService;
 use App\Support\FotoProduk;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class ProdukApiController extends Controller
 {
-    public function __construct(private StockManagementService $layananStok)
-    {
+    public function __construct(
+        private StockManagementService $layananStok,
+        private ProdukService $produk,
+    ) {
     }
 
     public function index(): JsonResponse
@@ -33,7 +33,11 @@ class ProdukApiController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $data = $this->validated($request);
+        if ($request->has('items')) {
+            return $this->simpanBanyak($request);
+        }
+
+        $data = $this->produk->siapkan($request->except('foto_produk'), $request->file('foto_produk'));
 
         if ($request->hasFile('foto_produk')) {
             $data['foto_produk'] = FotoProduk::simpan($request->file('foto_produk'));
@@ -49,7 +53,7 @@ class ProdukApiController extends Controller
 
     public function update(Request $request, Product $produk): JsonResponse
     {
-        $data = $this->validated($request);
+        $data = $this->produk->siapkan($request->except('foto_produk'), $request->file('foto_produk'));
 
         if ($request->hasFile('foto_produk')) {
             FotoProduk::hapus($produk->foto_produk);
@@ -136,6 +140,7 @@ class ProdukApiController extends Controller
             'sub'        => optional($p->subcategory)->subcategory_name,
             'pakai_stok' => $p->pakai_stok,
             'stok'       => $p->stok,
+            'satuan'     => $p->satuan,
             'tersedia'   => $p->tersedia,
             'is_active'  => $p->is_active,
             'status'     => $p->status,
@@ -145,79 +150,13 @@ class ProdukApiController extends Controller
 
     private function kategori(): array
     {
-        return Category::with('subcategories')->orderBy('id_ctg')->get()->map(fn (Category $c) => [
-            'id'        => $c->id_ctg,
-            'nama'      => $c->category_name,
-            'sub_label' => $c->category_name === 'Papan Bunga' ? 'Ukuran' : 'Jenis',
-            'subs'      => $c->subcategories->map(fn (Subcategory $s) => [
-                'id'         => $s->id_subctg,
-                'nama'       => $s->subcategory_name,
-                'pakai_stok' => $s->pakai_stok,
-            ])->values(),
-        ])->values()->all();
+        return app(KategoriService::class)->daftar();
     }
 
-    private function validated(Request $request): array
+    private function simpanBanyak(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'nama_produk' => ['nullable', 'string', 'max:100'],
-            'deskripsi'   => ['nullable', 'string'],
-            'harga'       => ['required', 'numeric', 'min:0', 'max:9999999999'],
-            'id_ctg'      => ['required', Rule::exists('categories', 'id_ctg')],
-            'id_subctg'   => ['nullable', 'integer'],
-            'stok'        => ['nullable', 'integer', 'min:0'],
-            'tersedia'    => ['nullable', 'boolean'],
-            'foto_produk' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-        ], [
-            'harga.required'    => 'Harga wajib diisi.',
-            'harga.numeric'     => 'Harga harus berupa angka.',
-            'stok.integer'      => 'Stok harus berupa bilangan bulat.',
-            'id_ctg.required'   => 'Pilih kategori.',
-            'foto_produk.image' => 'File harus berupa gambar.',
-            'foto_produk.max'   => 'Ukuran foto maksimal 2 MB.',
-        ]);
+        $hasil = $this->produk->simpanBanyak($this->produk->siapkanBanyak($request, awali: true));
 
-        $subs = Subcategory::where('id_ctg', $data['id_ctg'])->get();
-        $sub  = null;
-
-        if ($subs->isNotEmpty()) {
-            $sub = $subs->firstWhere('id_subctg', (int) ($data['id_subctg'] ?? 0));
-            if (! $sub) {
-                throw ValidationException::withMessages(['id_subctg' => 'Pilih jenis atau ukuran produk.']);
-            }
-        } else {
-            $data['id_subctg'] = null;
-        }
-
-        if (! $sub || $sub->pakai_stok) {
-            if (blank($data['nama_produk'] ?? null)) {
-                throw ValidationException::withMessages(['nama_produk' => 'Nama produk wajib diisi.']);
-            }
-        } else {
-            $data['nama_produk'] = $this->namaOtomatis(Category::find($data['id_ctg']), $sub);
-        }
-
-        if ($sub && $sub->pakai_stok) {
-            if (! isset($data['stok'])) {
-                throw ValidationException::withMessages(['stok' => 'Stok wajib diisi.']);
-            }
-            $data['tersedia'] = $data['stok'] > 0;
-        } else {
-            $data['stok']     = 0;
-            $data['tersedia'] = $request->boolean('tersedia');
-        }
-
-        unset($data['foto_produk']);
-        $data['is_active'] = $request->boolean('is_active');
-
-        return $data;
-    }
-
-    private function namaOtomatis(Category $kategori, Subcategory $sub): string
-    {
-        $k = $kategori->category_name;
-        $j = $sub->subcategory_name;
-
-        return str_starts_with(mb_strtolower($j), mb_strtolower($k)) ? $j : "{$k} {$j}";
+        return response()->json(['message' => count($hasil) . ' produk berhasil ditambahkan.'], 201);
     }
 }

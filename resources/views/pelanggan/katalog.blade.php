@@ -199,7 +199,7 @@
         <article class="card ${p.tersedia ? '' : 'off'}" data-id="${p.id}">
             <div class="media">
                 <span class="tag">${esc(p.kategori)}</span>
-                ${low ? `<span class="low">Sisa ${p.stok} tangkai</span>` : ''}
+                ${low ? `<span class="low">Sisa ${p.stok} ${esc(p.satuan || 'tangkai')}</span>` : ''}
                 ${p.foto_url ? `<img src="${esc(p.foto_url)}" alt="${esc(p.nama)}" loading="lazy" onerror="this.outerHTML=window.RF_PH">` : PH}
                 ${p.tersedia ? '' : '<span class="sold">Habis</span>'}
             </div>

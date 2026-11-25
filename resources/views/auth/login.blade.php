@@ -137,6 +137,11 @@
         <div class="error">{{ session('error') }}</div>
     @endif
 
+    {{-- TAMBAHAN: tampilkan pesan error validasi / login gagal --}}
+    @if ($errors->any())
+        <div class="error">{{ $errors->first() }}</div>
+    @endif
+
     <form method="POST" action="{{ route('login.proses') }}">
         @csrf
         <div class="field">

@@ -146,22 +146,140 @@
             cursor: pointer;
         }
 
-        .bell {
+        /* ---------- Lonceng notifikasi (popup) ---------- */
+        .notif-menu {
             position: relative;
-            color: var(--maroon);
-            display: flex;
         }
 
-        .bell::after {
-            content: '';
+        .notif-menu summary {
+            list-style: none;
+            position: relative;
+            display: flex;
+            cursor: pointer;
+            color: var(--maroon);
+        }
+
+        .notif-menu summary::-webkit-details-marker {
+            display: none;
+        }
+
+        /* Badge angka; hanya dirender kalau ada notifikasi */
+        .bell-badge {
             position: absolute;
-            top: -1px;
-            right: 0;
-            width: 7px;
-            height: 7px;
+            top: -7px;
+            right: -8px;
+            min-width: 17px;
+            height: 17px;
+            padding: 0 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             background: #e0446a;
-            border-radius: 50%;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
+            border-radius: 999px;
             border: 1.5px solid var(--pink-bg);
+        }
+
+        .notif-panel {
+            position: absolute;
+            right: -8px;
+            top: 40px;
+            z-index: 60;
+            width: 340px;
+            max-width: calc(100vw - 24px);
+            background: #fff;
+            border: 1px solid var(--pink-garis);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(123, 24, 48, .16);
+            overflow: hidden;
+        }
+
+        .notif-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--pink-garis);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--maroon);
+        }
+
+        .notif-head small {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--abu);
+        }
+
+        .notif-list {
+            max-height: 360px;
+            overflow-y: auto;
+        }
+
+        .notif-item {
+            display: flex;
+            gap: 10px;
+            padding: 11px 14px;
+            border-bottom: 1px solid var(--pink-bg);
+            color: var(--teks);
+            text-decoration: none;
+        }
+
+        .notif-item:last-child {
+            border-bottom: none;
+        }
+
+        .notif-item:hover {
+            background: var(--pink-bg);
+        }
+
+        .notif-ikon {
+            flex: none;
+            width: 32px;
+            height: 32px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: var(--pink-kartu);
+            color: var(--maroon);
+        }
+
+        .notif-ikon.habis    { background: #fbe3e0; color: var(--merah); }
+        .notif-ikon.menipis  { background: #fdf0d5; color: #b7791f; }
+
+        .notif-isi {
+            min-width: 0;
+        }
+
+        .notif-isi b {
+            display: block;
+            font-size: 12.5px;
+            color: var(--maroon);
+        }
+
+        .notif-isi span {
+            display: block;
+            margin-top: 1px;
+            font-size: 12px;
+            color: var(--abu);
+            overflow-wrap: anywhere;
+        }
+
+        .notif-isi time {
+            display: block;
+            margin-top: 3px;
+            font-size: 10.5px;
+            color: #9a9a9a;
+        }
+
+        .notif-kosong {
+            padding: 26px 14px;
+            text-align: center;
+            font-size: 12.5px;
+            color: var(--abu);
         }
 
         .admin-menu {
@@ -368,8 +486,18 @@
                 margin-right: auto;
             }
 
-            .bell {
+            .notif-menu {
                 order: 2;
+                position: static;   /* supaya popup menempel ke header, bukan ke ikon lonceng */
+            }
+
+            .notif-panel {
+                left: 12px;
+                right: 12px;
+                top: 100%;
+                width: auto;
+                max-width: none;
+                margin-top: 4px;
             }
 
             .admin-menu {
@@ -515,7 +643,44 @@
                 </div>
             @endif
 
-            <span class="bell">{!! $ikon('bell', 22) !!}</span>
+            {{-- Lonceng notifikasi: klik untuk membuka popup. Datanya ($notifikasi) dikirim oleh View composer di AppServiceProvider --}}
+            @php $notif = $notifikasi ?? ['total' => 0, 'items' => []]; @endphp
+            <details class="notif-menu">
+                <summary aria-label="Notifikasi">
+                    {!! $ikon('bell', 22) !!}
+                    @if ($notif['total'] > 0)
+                        <span class="bell-badge">{{ $notif['total'] > 99 ? '99+' : $notif['total'] }}</span>
+                    @endif
+                </summary>
+
+                <div class="notif-panel">
+                    <div class="notif-head">
+                        <span>Notifikasi</span>
+                        @if ($notif['total'] > 0)
+                            <small>{{ $notif['total'] }} perlu ditindak</small>
+                        @endif
+                    </div>
+
+                    <div class="notif-list">
+                        @forelse ($notif['items'] as $n)
+                            <a href="{{ $n['url'] }}" class="notif-item">
+                                <span class="notif-ikon {{ $n['jenis'] }}">
+                                    {!! $ikon($n['jenis'] === 'pesanan' ? 'cart' : 'box', 16) !!}
+                                </span>
+                                <span class="notif-isi">
+                                    <b>{{ $n['judul'] }}</b>
+                                    <span>{{ $n['teks'] }}</span>
+                                    @if ($n['waktu'])
+                                        <time>{{ $n['waktu'] }}</time>
+                                    @endif
+                                </span>
+                            </a>
+                        @empty
+                            <div class="notif-kosong">Tidak ada notifikasi baru.</div>
+                        @endforelse
+                    </div>
+                </div>
+            </details>
 
             <details class="admin-menu">
                 <summary>
@@ -630,6 +795,38 @@
 
             window.addEventListener('resize', function () {
                 if (window.innerWidth > 900) atur(false);
+            });
+        })();
+    </script>
+
+    <script>
+        // Popup lonceng dan menu profil memakai <details>. Secara bawaan <details> tidak menutup sendiri
+        // saat klik di luar, jadi ditambahkan di sini.
+        (function () {
+            var menus = document.querySelectorAll('details.notif-menu, details.admin-menu');
+
+            function tutupSemua(kecuali) {
+                menus.forEach(function (m) {
+                    if (m !== kecuali) m.open = false;
+                });
+            }
+
+            // Klik di luar menu manapun -> semua tertutup
+            document.addEventListener('click', function (e) {
+                menus.forEach(function (m) {
+                    if (m.open && !m.contains(e.target)) m.open = false;
+                });
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') tutupSemua(null);
+            });
+
+            // Membuka satu menu otomatis menutup menu yang lain
+            menus.forEach(function (m) {
+                m.addEventListener('toggle', function () {
+                    if (m.open) tutupSemua(m);
+                });
             });
         })();
     </script>
