@@ -35,6 +35,9 @@ Route::prefix('karyawan')->group(function () {
         Route::post('/logout', [KaryawanAuthController::class, 'logout']);
         Route::get('/beranda', [KaryawanBerandaController::class, 'index']);
 
+        // Konfirmasi pesanan mobile
+        Route::put('/orders/{id}', [OrderController::class, 'update']);
+
         Route::get('/produk', [ProdukApiController::class, 'index']);
         Route::post('/produk', [ProdukApiController::class, 'store']);
         Route::post('/produk/{produk}', [ProdukApiController::class, 'update']);
