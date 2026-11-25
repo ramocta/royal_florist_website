@@ -1,4 +1,3 @@
-
 @extends('layouts.admin')
 
 @section('title', 'Profil')
@@ -317,7 +316,20 @@
                     @csrf
 
                     <label>Foto Profil</label>
-                    <input type="file" name="foto_profil" accept="image/*">
+                    <input
+                        type="file"
+                        name="foto_profil"
+                        id="foto_profil"
+                        accept="image/jpeg,image/png,image/jpg,image/webp"
+                    >
+
+                    <small style="display:block; color:#6f5a5f; font-size:11px; margin-bottom:12px;">
+                        Format: JPG, PNG, WEBP. Maksimal 2 MB
+                    </small>
+
+                    @error('foto_profil')
+                        <div class="field-error">{{ $message }}</div>
+                    @enderror
 
                     <div class="photo-actions">
                         <button type="submit" class="btn btn-fill">
@@ -477,6 +489,46 @@ document.querySelectorAll('.profil-page .menu button').forEach(btn => {
 
         document.getElementById(btn.dataset.target)
             .scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const inputFoto = document.getElementById('foto_profil');
+
+    if (!inputFoto) {
+        return;
+    }
+
+    const formFoto = inputFoto.closest('form');
+
+    formFoto.addEventListener('submit', function (event) {
+        const file = inputFoto.files[0];
+
+        if (!file) {
+            return;
+        }
+
+        const maxSize = 2 * 1024 * 1024;
+        const allowedTypes = [
+            'image/jpeg',
+            'image/png',
+            'image/webp'
+        ];
+
+        if (file.size > maxSize) {
+            alert('Ukuran foto maksimal 2 MB. Silakan pilih foto yang lebih kecil.');
+            event.preventDefault();
+            inputFoto.value = '';
+            return;
+        }
+
+        if (!allowedTypes.includes(file.type)) {
+            alert('Format foto tidak sesuai. Gunakan JPG, JPEG, PNG, atau WEBP.');
+            event.preventDefault();
+            inputFoto.value = '';
+        }
     });
 });
 </script>
