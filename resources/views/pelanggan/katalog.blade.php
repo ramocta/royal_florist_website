@@ -61,10 +61,10 @@
     .body h3 { margin:6px 0 4px; font-size:17px; font-weight:700; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
     .meta { margin:0; font-size:13px; color:var(--maroon-lt); font-weight:500; }
     .buy { margin-top:auto; padding-top:14px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .add { flex:none; display:inline-flex; align-items:center; justify-content:center; gap:6px; height:40px; padding:0 14px; border:0; border-radius:99px; background:linear-gradient(135deg, var(--maroon-lt), var(--maroon-dk)); color:#fff; font:inherit; font-size:13px; font-weight:700; cursor:pointer; box-shadow:0 6px 14px rgba(83,26,53,.22); transition:transform .15s, box-shadow .15s, opacity .15s; }
+    .add { flex:none; pointer-events:none; display:inline-flex; align-items:center; justify-content:center; gap:6px; height:40px; padding:0 14px; border:0; border-radius:99px; background:linear-gradient(135deg, var(--maroon-lt), var(--maroon-dk)); color:#fff; font:inherit; font-size:13px; font-weight:700; cursor:pointer; box-shadow:0 6px 14px rgba(83,26,53,.22); transition:transform .15s, box-shadow .15s, opacity .15s; }
     .add:hover { transform:translateY(-1px); box-shadow:0 10px 20px rgba(83,26,53,.3); }
     .add:active { transform:scale(.96); }
-    .add:disabled { background:#d9c9ce; box-shadow:none; cursor:not-allowed; transform:none; }
+    .add.disabled, .add:disabled { background:#d9c9ce; box-shadow:none; cursor:not-allowed; transform:none; }
     .add:focus-visible { outline:2px solid var(--maroon); outline-offset:3px; }
     .price { white-space:nowrap; font-size:20px; font-weight:700; color:var(--maroon); letter-spacing:-.01em; }
     @media (hover:hover) {
@@ -170,6 +170,7 @@
 <script>
 (() => {
     const URL_DATA = @json(route('pelanggan.katalog.data'));
+    const URL_DETAIL = @json(url('pelanggan/produk'));   // + '/{id}' -> halaman detail produk
     const CATS = @json($categories);
     const state = { page: 1, q: '', category: '', sub: '', sort: 'terbaru' };
     const $ = s => document.querySelector(s);
@@ -196,7 +197,7 @@
     function card(p) {
         const low = p.pakai_stok && p.tersedia && p.stok <= 5;
         return `
-        <article class="card ${p.tersedia ? '' : 'off'}" data-id="${p.id}">
+        <a class="card ${p.tersedia ? '' : 'off'}" data-id="${p.id}" href="${URL_DETAIL}/${p.id}" aria-label="Lihat detail ${esc(p.nama)}">
             <div class="media">
                 <span class="tag">${esc(p.kategori)}</span>
                 ${low ? `<span class="low">Sisa ${p.stok} ${esc(p.satuan || 'tangkai')}</span>` : ''}
@@ -208,13 +209,13 @@
                 <p class="meta">${esc(p.sub || p.kategori)}</p>
                 <div class="buy">
                     <span class="price">${rupiah(p.harga)}</span>
-                    <button type="button" class="add" data-add="${p.id}" ${p.tersedia ? '' : 'disabled'} aria-label="Tambah ${esc(p.nama)} ke keranjang">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
-                        <span>${p.tersedia ? 'Keranjang' : 'Habis'}</span>
-                    </button>
+                    <span class="add ${p.tersedia ? '' : 'disabled'}">
+                        <span>${p.tersedia ? 'Lihat Detail' : 'Habis'}</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+                    </span>
                 </div>
             </div>
-        </article>`;
+        </a>`;
     }
 
     const PRODUK = {};   // id -> data produk yang sedang tampil (untuk cek stok)
@@ -250,20 +251,6 @@
         }
     }
     const reload = () => { lastSig = ''; load(true); };
-
-    // Tombol "Keranjang" di kartu produk
-    $('#grid').addEventListener('click', e => {
-        const btn = e.target.closest('[data-add]');
-        if (!btn || btn.disabled) return;
-        const p = PRODUK[btn.dataset.add];
-        if (!p || !p.tersedia) return;
-
-        const card = btn.closest('.card');
-        const src = card.querySelector('.media img, .media svg');
-        const max = p.pakai_stok ? p.stok : Infinity;   // produk per-stok dibatasi jumlah stok
-
-        if (RF.add(p.id, max, src)) RF.toast(p.nama + ' ditambahkan ke keranjang.');
-    });
 
     $('#chips').addEventListener('click', e => {
         const b = e.target.closest('[data-cat]'); if (!b) return;

@@ -17,7 +17,7 @@ use App\Http\Controllers\AuthController;
 // Use For Pelanggan
 use App\Http\Controllers\pelanggan\BerandaController;
 use App\Http\Controllers\pelanggan\KatalogController;
-use App\Http\Controllers\pelanggan\pembayaranController;
+use App\Http\Controllers\pelanggan\PembayaranController;
 use App\Http\Controllers\pelanggan\ProdukDetailController;
 use App\Http\Controllers\pelanggan\CheckoutController;
 use App\Http\Controllers\pelanggan\KeranjangController;

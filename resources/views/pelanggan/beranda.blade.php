@@ -52,7 +52,6 @@
     .btn.ghost:hover { background:rgba(255,255,255,.12); }
     .btn.solid { background:var(--maroon); color:#fff; width:100%; padding:12px 16px; border-radius:14px; font-size:13.5px; }
     .btn.solid:hover { background:var(--maroon-dk); }
-    .btn.solid.kecil { padding:10px 12px; font-size:12.5px; }
 
     /* Banner slider: isinya murni gambar desain UMKM (tanpa teks tambahan), diatur admin di Pengaturan > Manajemen Landing Page */
     .slider { position:relative; border-radius:26px; overflow:hidden; background:var(--blush-dk); box-shadow:0 18px 40px rgba(83,26,53,.22); }
@@ -88,7 +87,11 @@
     .kat p { flex:1; margin:6px 4px 16px; font-size:12.5px; line-height:1.5; color:var(--muted); }
     .pc h3 { margin:12px 4px 0; font-size:14px; font-weight:600; color:var(--maroon); }
     .pc .spec { margin:2px 4px 0; font-size:11.5px; color:var(--muted); }
-    .pc .harga { flex:1; margin:8px 4px 12px; font-size:14.5px; font-weight:700; color:var(--maroon); }
+    .pc .harga { flex:1; margin:8px 4px 4px; font-size:14.5px; font-weight:700; color:var(--maroon); }
+    /* Kartu produk adalah link ke halaman detail produk */
+    a.pc { color:inherit; text-decoration:none; transition:transform .2s ease, box-shadow .2s ease; }
+    a.pc:hover { transform:translateY(-4px); box-shadow:0 16px 32px rgba(83,26,53,.14); }
+    a.pc:focus-visible { outline:2px solid var(--maroon); outline-offset:3px; }
 
     /* Fitur spesial */
     .spesial { padding:44px 52px; border-radius:26px; color:#fff; background:linear-gradient(135deg, #6a1730, #8a2543); box-shadow:0 18px 40px rgba(83,26,53,.22); }
@@ -201,7 +204,7 @@
             </div>
             <div class="pc-grid">
                 @foreach ($terlaris as $p)
-                    <div class="pc">
+                    <a class="pc" href="{{ route('pelanggan.produk.show', $p['id']) }}" aria-label="Lihat detail {{ $p['nama'] }}">
                         <div class="pic">
                             @if ($p['gambar'])
                                 <img src="{{ $p['gambar'] }}" alt="{{ $p['nama'] }}" loading="lazy" onerror="this.style.display='none'">
@@ -212,8 +215,7 @@
                         <h3>{{ $p['nama'] }}</h3>
                         <p class="spec">{{ $p['spesifikasi'] }}</p>
                         <p class="harga">Rp {{ number_format($p['harga'], 0, ',', '.') }}</p>
-                        <button type="button" class="btn solid kecil" data-add="{{ $p['id'] }}" data-max="{{ $p['maks'] }}">+ Tambah Keranjang</button>
-                    </div>
+                    </a>
                 @endforeach
             </div>
         </section>
@@ -308,16 +310,5 @@
 
         mulai();
     })();
-
-    // Tombol "+ Tambah Keranjang": memakai keranjang bawaan layout (window.RF, disimpan di browser)
-    document.querySelectorAll('[data-add]').forEach(function (tombol) {
-        tombol.addEventListener('click', function () {
-            var kartu = tombol.closest('.pc');
-            var maks = tombol.dataset.max ? Number(tombol.dataset.max) : Infinity;   // kosong = tidak dibatasi stok
-            if (RF.add(tombol.dataset.add, maks, kartu.querySelector('img, svg'))) {
-                RF.toast('Ditambahkan ke keranjang.');
-            }
-        });
-    });
 </script>
 @endpush
