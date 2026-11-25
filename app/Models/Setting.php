@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -14,7 +15,7 @@ class Setting extends Model
     public $incrementing = false;
     public $timestamps = false;
 
-    protected $fillable = ['setting_key', 'setting_value'];
+    protected $fillable = ['setting_key', 'setting_value', 'diubah_oleh'];
 
     /**
      * Nilai bawaan. Dipakai kalau admin belum pernah menyimpan isian itu,
@@ -87,13 +88,33 @@ class Setting extends Model
         return asset($bawaan);
     }
 
-    // Simpan banyak isian sekaligus. Baris ada -> diubah, belum ada -> dibuat.
-    // DB::transaction: kalau satu gagal, semuanya dibatalkan, jadi tidak ada data setengah tersimpan.
-    public static function simpan(array $data): void
+    // Admin/karyawan yang terakhir mengubah isian ini (null = nilai bawaan / tidak diketahui)
+    public function pengubah(): BelongsTo
     {
-        DB::transaction(function () use ($data) {
+        return $this->belongsTo(User::class, 'diubah_oleh', 'id_user');
+    }
+
+    /*
+     * Simpan banyak isian sekaligus. Baris ada -> diubah, belum ada -> dibuat.
+     * $oleh = id_user admin yang menyimpan; dicatat di kolom diubah_oleh.
+     *
+     * Satu form menyimpan semua isiannya sekaligus, termasuk yang tidak diubah. Karena itu baris
+     * hanya ditulis kalau barunya dibuat atau nilainya benar-benar berubah (isDirty), supaya
+     * diubah_oleh tidak ikut tertimpa pada isian yang sebenarnya tidak disentuh admin.
+     *
+     * DB::transaction: kalau satu gagal, semuanya dibatalkan, jadi tidak ada data setengah tersimpan.
+     */
+    public static function simpan(array $data, ?int $oleh = null): void
+    {
+        DB::transaction(function () use ($data, $oleh) {
             foreach ($data as $kunci => $nilai) {
-                self::updateOrCreate(['setting_key' => $kunci], ['setting_value' => $nilai]);
+                $baris = self::firstOrNew(['setting_key' => $kunci]);
+                $baris->setting_value = $nilai;
+
+                if ($baris->isDirty('setting_value')) {
+                    $baris->diubah_oleh = $oleh;
+                    $baris->save();
+                }
             }
         });
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
 
 class Banner extends Model
@@ -10,9 +11,15 @@ class Banner extends Model
     protected $table = 'banners';
     protected $primaryKey = 'id_banner';
 
-    protected $fillable = ['gambar', 'urutan', 'is_active'];
+    protected $fillable = ['gambar', 'urutan', 'is_active', 'diubah_oleh'];
 
     protected $casts = ['is_active' => 'boolean'];
+
+    // Admin/karyawan yang terakhir mengubah banner ini (null = banner lama / tidak diketahui)
+    public function pengubah(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'diubah_oleh', 'id_user');
+    }
 
     // Alamat (URL) gambar. Null kalau file-nya tidak ada di storage, supaya beranda tidak menampilkan gambar rusak.
     public function getUrlAttribute(): ?string
