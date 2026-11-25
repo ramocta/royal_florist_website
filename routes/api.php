@@ -47,10 +47,8 @@ Route::prefix('karyawan')->group(function () {
         Route::post('/logout', [KaryawanAuthController::class, 'logout']);
         Route::get('/beranda', [KaryawanBerandaController::class, 'index']);
 
-<<<<<<< HEAD
         // Konfirmasi pesanan mobile
         Route::put('/orders/{id}', [OrderController::class, 'update']);
-=======
         // Ringkasan & daftar pesanan ("Lihat Semua")
         Route::get('/ringkasan', [OrderSummaryController::class, 'index']);
         Route::get('/pesanan', [OrderSummaryController::class, 'pesanan']);
@@ -61,7 +59,6 @@ Route::prefix('karyawan')->group(function () {
         Route::post('/profil/foto', [KaryawanProfilController::class, 'foto']);
 
         Route::post('/kategori', [KategoriApiController::class, 'store']);
->>>>>>> cc14e30d8ef55f126c4d11ecf994c20d4ce168ff
 
         Route::get('/produk', [ProdukApiController::class, 'index']);
         Route::post('/produk', [ProdukApiController::class, 'store']);

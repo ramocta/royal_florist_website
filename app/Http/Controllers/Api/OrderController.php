@@ -32,7 +32,6 @@ class OrderController extends Controller
         return response()->json(['data' => $orders]);
     }
 
-<<<<<<< HEAD
     // Update konfirmasi pesanan mobile
     public function update(Request $request, $id)
     {
@@ -91,7 +90,17 @@ class OrderController extends Controller
                 'status_pesanan' => $validated['status_pesanan'],
                 'catatan' => $validated['catatan_toko'] ?? null,
                 'diubah_oleh' => null,
-=======
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'Status pesanan berhasil diperbarui.',
+            'data' => DB::table('orders')
+                ->where('id_order', $id)
+                ->first(),
+        ]);
+    }
+
     /**
      * Detail satu pesanan (halaman Detail Pesanan dan Struk).
      * GET /api/orders/{id}
@@ -194,20 +203,12 @@ class OrderController extends Controller
                 'catatan'        => $catatan,
                 'diubah_oleh'    => $idPengguna,
                 'diubah_pada'    => now(),
->>>>>>> cc14e30d8ef55f126c4d11ecf994c20d4ce168ff
             ]);
         });
 
         return response()->json([
-<<<<<<< HEAD
-            'message' => 'Status pesanan berhasil diperbarui.',
-            'data' => DB::table('orders')
-                ->where('id_order', $id)
-                ->first(),
-=======
             'message' => 'Status pesanan berhasil diubah',
             'data'    => DB::table('orders')->where('id_order', $id)->first(),
->>>>>>> cc14e30d8ef55f126c4d11ecf994c20d4ce168ff
         ]);
     }
 }
