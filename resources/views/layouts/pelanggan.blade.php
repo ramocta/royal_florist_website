@@ -129,7 +129,9 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6"/></svg>Pesanan
     </a>
 
-    <a class="tab" href="#">
+
+
+    <a class="tab {{ request()->routeIs('pelanggan.profile') ? 'on' : '' }}" href="{{ route('pelanggan.profile') }}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Profil
     </a>
 </nav>
