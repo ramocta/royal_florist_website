@@ -63,9 +63,17 @@ class ProfilController extends Controller
 
     public function updatePhoto(Request $request)
     {
-        $request->validate([
-            'foto_profil' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
-        ]);
+        $request->validate(
+            [
+                'foto_profil' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+            ],
+            [
+                'foto_profil.required' => 'Silakan pilih foto profil terlebih dahulu.',
+                'foto_profil.image' => 'File yang dipilih harus berupa gambar.',
+                'foto_profil.mimes' => 'Format foto harus JPG, JPEG, PNG, atau WEBP.',
+                'foto_profil.max' => 'Ukuran foto maksimal 2 MB. Silakan pilih foto yang lebih kecil.',
+            ]
+        );
 
         $user = Auth::user();
 

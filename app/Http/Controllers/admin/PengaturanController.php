@@ -25,7 +25,7 @@ class PengaturanController extends Controller
         // Checkbox yang tidak dicentang tidak terkirim sama sekali, jadi ubah ke '1' atau '0' secara eksplisit
         $data['toko_buka'] = $request->boolean('toko_buka') ? '1' : '0';
 
-        Setting::simpan($data);
+        Setting::simpan($data, $request->user()->id_user);
 
         return redirect()->route('admin.pengaturan.index')->with('success', 'Pengaturan toko disimpan.');
     }
@@ -44,7 +44,7 @@ class PengaturanController extends Controller
         // Banner diatur lewat tombol sendiri (unggah / hapus / aktif-nonaktif / urutan), jadi di sini hanya footer
         $data = $request->validate($this->aturanLanding(), $this->pesan(), $this->label());
 
-        Setting::simpan($data);
+        Setting::simpan($data, $request->user()->id_user);
 
         return redirect()->route('admin.pengaturan.landing')->with('success', 'Landing page diperbarui.');
     }
@@ -70,9 +70,10 @@ class PengaturanController extends Controller
 
         foreach ($request->file('banner') as $berkas) {
             Banner::create([
-                'gambar'    => $berkas->store('banners', 'public'),  // nama file diacak Laravel
-                'urutan'    => ++$urutan,
-                'is_active' => true,
+                'gambar'      => $berkas->store('banners', 'public'),  // nama file diacak Laravel
+                'urutan'      => ++$urutan,
+                'is_active'   => true,
+                'diubah_oleh' => $request->user()->id_user,
             ]);
         }
 
@@ -80,9 +81,12 @@ class PengaturanController extends Controller
             ->with('success', count($request->file('banner')) . ' banner ditambahkan.');
     }
 
-    public function toggleBanner(Banner $banner)
+    public function toggleBanner(Request $request, Banner $banner)
     {
-        $banner->update(['is_active' => ! $banner->is_active]);
+        $banner->update([
+            'is_active'   => ! $banner->is_active,
+            'diubah_oleh' => $request->user()->id_user,
+        ]);
 
         return redirect()->route('admin.pengaturan.landing')
             ->with('success', $banner->is_active ? 'Banner diaktifkan.' : 'Banner disembunyikan dari beranda.');
@@ -103,7 +107,7 @@ class PengaturanController extends Controller
             // Tulis ulang urutan 1..n supaya selalu rapi, tidak bergantung nilai lama
             foreach ($semua as $n => $b) {
                 if ($b->urutan !== $n + 1) {
-                    $b->update(['urutan' => $n + 1]);
+                    $b->update(['urutan' => $n + 1, 'diubah_oleh' => $request->user()->id_user]);
                 }
             }
         }
@@ -140,7 +144,7 @@ class PengaturanController extends Controller
             $data['qris_gambar'] = $request->file('qris_gambar')->store('qris', 'public');
         }
 
-        Setting::simpan($data);
+        Setting::simpan($data, $request->user()->id_user);
 
         // Hapus QRIS lama SETELAH yang baru tersimpan, supaya kalau penyimpanan gagal QRIS lama masih ada
         if (isset($data['qris_gambar']) && $gambarLama) {

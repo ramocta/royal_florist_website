@@ -25,7 +25,7 @@ class CheckoutController extends Controller
     // Metode bayar yang boleh dipilih pelanggan kalau pesanan DIKIRIM. Ambil di toko selalu bayar di kasir.
     private const METODE_ONLINE = ['QRIS', 'transfer_bank'];
 
-    public function index()
+    public function index(Request $request)
     {
         $pelanggan = auth()->user();
 
@@ -39,8 +39,14 @@ class CheckoutController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        // Diisi kalau pelanggan menekan "Beli Sekarang" di halaman detail produk (null = checkout dari keranjang)
-        $beliLangsung = session('beli_langsung');
+        // Diisi kalau pelanggan menekan "Beli Sekarang" di halaman detail produk (null = checkout dari keranjang).
+        // Hanya dipakai kalau URL membawa ?langsung=1. Kalau tidak, sisa session lama dibuang supaya
+        // checkout dari keranjang tidak salah menampilkan produk "Beli Sekarang" yang pernah ditinggalkan.
+        $beliLangsung = $request->boolean('langsung') ? session('beli_langsung') : null;
+
+        if (! $beliLangsung) {
+            session()->forget('beli_langsung');
+        }
 
         // Transfer Bank baru ditawarkan kalau admin sudah mengisi rekening toko
         $transferTersedia = Setting::rekeningBank() !== null;

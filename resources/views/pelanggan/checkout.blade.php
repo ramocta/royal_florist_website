@@ -254,6 +254,7 @@
     <input type="hidden" name="jenis_pengambilan" id="metodePesanan" value="dikirim">
     <input type="hidden" name="metode_pembayaran" id="metodePembayaran" value="{{ $pilihBayar }}">
     <input type="hidden" name="cart_items" id="cartItemsInput">
+    <input type="hidden" name="sumber" value="{{ $beliLangsung ? 'langsung' : 'keranjang' }}">
   </form>
 
   <div class="cols">
@@ -471,6 +472,8 @@
 document.addEventListener('DOMContentLoaded', async function () {
   const DATA_URL = @json(route('pelanggan.keranjang.data'));
   const CART_KEY = 'rf_cart';
+  // Terisi kalau datang dari tombol "Beli Sekarang" (id_product, jumlah, wrapping). null = checkout dari keranjang.
+  const BELI_LANGSUNG = @json($beliLangsung);
   const COURIER = 20000;
 
   let subtotalProduk = 0;
@@ -536,8 +539,13 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   async function loadCart() {
     try {
-      const savedCart = localStorage.getItem(CART_KEY);
-      cartItems = savedCart ? JSON.parse(savedCart) : {};
+      if (BELI_LANGSUNG) {
+        // Beli Sekarang: hanya satu produk dari server. Isi keranjang di browser tidak disentuh.
+        cartItems = { [BELI_LANGSUNG.id_product]: BELI_LANGSUNG.jumlah };
+      } else {
+        const savedCart = localStorage.getItem(CART_KEY);
+        cartItems = savedCart ? JSON.parse(savedCart) : {};
+      }
 
       if (!cartItems || typeof cartItems !== 'object' || Array.isArray(cartItems)) {
         cartItems = {};
@@ -600,7 +608,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         name.textContent = product.nama;
 
         const detail = document.createElement('small');
-        detail.textContent = quantity + ' x ' + rp(price);
+        detail.textContent = quantity + ' x ' + rp(price)
+          + (BELI_LANGSUNG && BELI_LANGSUNG.wrapping ? ' · Wrapping ' + BELI_LANGSUNG.wrapping : '');
 
         info.appendChild(name);
         info.appendChild(detail);

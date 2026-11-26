@@ -64,7 +64,8 @@ class ProdukDetailController extends Controller
             'wrapping'   => $data['wrapping'] ?? null,
         ]]);
 
-        return redirect()->route('checkout');
+        // ?langsung=1 memberi tahu halaman checkout bahwa ini alur "Beli Sekarang" (bukan dari keranjang)
+        return redirect()->route('pelanggan.checkout', ['langsung' => 1]);
     }
 
     // Lencana BESTSELLER: produk termasuk 3 terlaris dalam 30 hari terakhir (pesanan batal tidak dihitung)

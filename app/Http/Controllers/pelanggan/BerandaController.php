@@ -98,7 +98,6 @@ class BerandaController extends Controller
             'spesifikasi' => Str::limit(strip_tags((string) $p->deskripsi), 38) ?: ($p->subcategory->subcategory_name ?? ''),
             'harga'       => (int) $p->harga,
             'gambar'      => $p->foto_url,
-            'maks'        => $p->pakai_stok ? $p->stok : null,   // null = tidak dibatasi stok
         ])->values()->all();
     }
 }

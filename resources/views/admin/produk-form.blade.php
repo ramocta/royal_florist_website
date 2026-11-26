@@ -109,13 +109,14 @@
             c.subs.map(s => `<option value="${s.id}" ${String(s.id) === keep ? 'selected' : ''}>${s.nama}</option>`).join('');
         wrap.style.display = 'block';
     }
-    // Stok (tangkai) hanya untuk jenis yang pakai_stok; selain itu tersedia / tidak
+    // Stok dipakai bila jenis (atau kategori tanpa jenis) pakai_stok; selain itu tersedia / tidak
     function applyMode() {
         const c = CATS.find(x => String(x.id) === catSel.value);
         const s = c && c.subs.find(x => String(x.id) === subSel.value);
-        const pakai = !!(s && s.pakai_stok);
+        const pakai = s ? !!s.pakai_stok : !!(c && !c.subs.length && c.pakai_stok);
         const stokInp = document.getElementById('stok');
         document.getElementById('stokWrap').style.display = pakai ? '' : 'none';
+        document.querySelector('#stokWrap label').textContent = s ? 'Stok (tangkai)' : 'Stok (pcs)';
         stokInp.disabled = !pakai; stokInp.required = pakai;
         document.getElementById('tersediaWrap').style.display = pakai ? 'none' : '';
         document.querySelectorAll('#tersediaWrap input').forEach(i => i.disabled = pakai);
