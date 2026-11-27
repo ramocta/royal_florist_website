@@ -54,7 +54,8 @@ class AuthController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
-        return redirect()->route('pelanggan.katalog');
+        // Pelanggan diarahkan ke beranda setelah login
+        return redirect()->route('pelanggan.beranda');
     }
 
     public function logout(Request $request)
